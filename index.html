@@ -60,7 +60,7 @@
 const $ = id => document.getElementById(id);
 // ★ 部署后把这里改成你的后端地址 (cloudflared 隧道 https 地址)
 //    隧道地址每次重启 cloudflared 会变; 变了就改这里, 或让访客在浏览器 localStorage 设 api_base
-const API = localStorage.getItem('api_base') || 'https://module-gotta-parade-influence.trycloudflare.com';
+const API = localStorage.getItem('api_base') || 'https://suitable-acts-lewis-else.trycloudflare.com';
 $('token').value = localStorage.getItem('token') || '';
 $('saveTok').onclick = () => { localStorage.setItem('token', $('token').value.trim()); loadWorkflows(); };
 
