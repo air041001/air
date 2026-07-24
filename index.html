@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 绘图小屋</title>
+<style>
+  :root { --bg:#1a1b26; --panel:#24283b; --fg:#c0caf5; --dim:#565f89; --accent:#7aa2f7; --ok:#9ece6a; --err:#f7768e; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--fg); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:16px; }
+  .card { background:var(--panel); border-radius:12px; padding:20px; width:100%; max-width:640px; margin-bottom:16px; }
+  h1 { font-size:1.3rem; margin-bottom:4px; }
+  .sub { color:var(--dim); font-size:.85rem; margin-bottom:12px; }
+  textarea { width:100%; min-height:90px; background:#1f2335; color:var(--fg); border:1px solid #3b4261; border-radius:8px; padding:10px; font-size:1rem; resize:vertical; }
+  textarea:focus { outline:none; border-color:var(--accent); }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; }
+  select, input[type=password] { background:#1f2335; color:var(--fg); border:1px solid #3b4261; border-radius:8px; padding:8px 10px; font-size:.95rem; }
+  button { background:var(--accent); color:#1a1b26; border:none; border-radius:8px; padding:10px 22px; font-size:1rem; font-weight:600; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  #status { margin-top:10px; font-size:.9rem; color:var(--dim); min-height:1.4em; }
+  #status.err { color:var(--err); }
+  #result { margin-top:12px; display:none; }
+  #result img { width:100%; border-radius:8px; }
+  #promptEn { font-size:.75rem; color:var(--dim); margin-top:6px; word-break:break-all; }
+  .gallery { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; width:100%; max-width:640px; }
+  .gallery img { width:100%; border-radius:8px; cursor:pointer; }
+  .bar { height:4px; background:#1f2335; border-radius:2px; overflow:hidden; margin-top:8px; display:none; }
+  .bar i { display:block; height:100%; width:40%; background:var(--accent); border-radius:2px; animation:slide 1.2s infinite; }
+  @keyframes slide { 0%{margin-left:-40%} 100%{margin-left:100%} }
+  a.dl { color:var(--accent); font-size:.85rem; text-decoration:none; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>🎨 AI 绘图小屋</h1>
+    <div class="sub">输入中文描述即可, 自动转成模型提示词 · 一次一张, 高峰期请耐心排队</div>
+    <div class="row">
+      <input type="password" id="token" placeholder="邀请码" style="flex:1">
+      <button id="saveTok" type="button" style="padding:8px 14px">保存</button>
+    </div>
+    <textarea id="prompt" placeholder="例: 一个白发蓝眼睛的猫耳少女, 穿着白色连衣裙, 站在樱花树下, 微笑"></textarea>
+    <div class="row">
+      <select id="workflow"></select>
+      <select id="size"></select>
+    </div>
+    <button id="go">✨ 生成</button>
+    <div class="bar" id="bar"><i></i></div>
+    <div id="status"></div>
+    <div id="result">
+      <img id="img" alt="生成结果">
+      <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:center">
+        <span id="promptEn"></span>
+        <a class="dl" id="dl" download>下载原图</a>
+      </div>
+    </div>
+  </div>
+  <div class="gallery" id="gallery"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+// ★ 部署后把这里改成你的后端地址 (cloudflared 隧道 https 地址)
+//    隧道地址每次重启 cloudflared 会变; 变了就改这里, 或让访客在浏览器 localStorage 设 api_base
+const API = localStorage.getItem('api_base') || 'https://module-gotta-parade-influence.trycloudflare.com';
+$('token').value = localStorage.getItem('token') || '';
+$('saveTok').onclick = () => { localStorage.setItem('token', $('token').value.trim()); loadWorkflows(); };
+
+let workflows = [];
+async function api(path, opts = {}) {
+  opts.headers = Object.assign({ 'Authorization': 'Bearer ' + $('token').value.trim() }, opts.headers);
+  if (opts.json) { opts.method = opts.method || 'POST'; opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(opts.json); }
+  const r = await fetch(API + path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.detail || ('HTTP ' + r.status));
+  return data;
+}
+
+async function loadWorkflows() {
+  try {
+    workflows = await api('/api/workflows');
+    $('workflow').innerHTML = workflows.map(w => `<option value="${w.name}">${w.label}</option>`).join('');
+    updateSizes();
+    $('status').textContent = '';
+  } catch (e) { $('status').textContent = '⚠ ' + e.message; $('status').className = 'err'; }
+}
+function updateSizes() {
+  const w = workflows.find(x => x.name === $('workflow').value);
+  $('size').innerHTML = (w && w.sizes ? w.sizes : ['']).map(s => `<option>${s}</option>`).join('');
+  $('size').style.display = w && w.sizes ? '' : 'none';
+}
+$('workflow').onchange = updateSizes;
+
+let polling = null;
+$('go').onclick = async () => {
+  const prompt = $('prompt').value.trim();
+  if (!prompt) return;
+  $('go').disabled = true; $('result').style.display = 'none';
+  $('bar').style.display = 'block'; $('status').className = '';
+  clearInterval(polling);
+  try {
+    const job = await api('/api/jobs', { json: { workflow: $('workflow').value, prompt, size: $('size').value || undefined } });
+    $('promptEn').textContent = '→ ' + job.prompt_en;
+    polling = setInterval(() => poll(job.id), 2000);
+  } catch (e) { done('⚠ ' + e.message, true); }
+};
+
+async function poll(id) {
+  try {
+    const j = await api('/api/jobs/' + id);
+    if (j.status === 'queued') $('status').textContent = `排队中… 第 ${j.position} 位`;
+    else if (j.status === 'running') $('status').textContent = '生成中… (通常 10~60 秒)';
+    else if (j.status === 'done') {
+      clearInterval(polling);
+      $('img').src = API + j.image;
+      $('dl').href = API + j.image;
+      $('result').style.display = 'block';
+      addToGallery(API + j.image);
+      done('✅ 完成');
+    } else if (j.status === 'failed') { clearInterval(polling); done('❌ ' + (j.error || '生成失败'), true); }
+  } catch (e) { /* 网络抖动继续轮询 */ }
+}
+function done(msg, err) { $('status').textContent = msg; $('status').className = err ? 'err' : ''; $('bar').style.display = 'none'; $('go').disabled = false; }
+
+function addToGallery(src) {
+  const img = document.createElement('img'); img.src = src; img.onclick = () => window.open(src);
+  $('gallery').prepend(img);
+  while ($('gallery').children.length > 12) $('gallery').lastChild.remove();
+}
+loadWorkflows();
+</script>
+</body>
+</html>
