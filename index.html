@@ -14,7 +14,7 @@
   textarea { width:100%; min-height:90px; background:#1f2335; color:var(--fg); border:1px solid #3b4261; border-radius:8px; padding:10px; font-size:1rem; resize:vertical; }
   textarea:focus { outline:none; border-color:var(--accent); }
   .row { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; }
-  select, input[type=password] { background:#1f2335; color:var(--fg); border:1px solid #3b4261; border-radius:8px; padding:8px 10px; font-size:.95rem; }
+  select, input[type=password], input[type=number] { background:#1f2335; color:var(--fg); border:1px solid #3b4261; border-radius:8px; padding:8px 10px; font-size:.95rem; }
   button { background:var(--accent); color:#1a1b26; border:none; border-radius:8px; padding:10px 22px; font-size:1rem; font-weight:600; cursor:pointer; }
   button:disabled { opacity:.5; cursor:not-allowed; }
   #status { margin-top:10px; font-size:.9rem; color:var(--dim); min-height:1.4em; }
@@ -43,6 +43,15 @@
       <select id="workflow"></select>
       <select id="size"></select>
     </div>
+    <div class="row">
+      <select id="lora" style="flex:1"><option value="">无 LoRA (原生模型)</option></select>
+      <label for="lora-strength" style="color:var(--dim);font-size:.85rem">强度</label>
+      <input id="lora-strength" type="number" min="0" max="1" step="0.05" value="1" title="LoRA 强度 (0~1, 1=满)" style="width:64px">
+    </div>
+    <div id="lora-preview" style="display:none;margin:6px 0 0">
+      <img id="lora-img" alt="" onerror="this.style.display='none'" style="max-width:120px;border-radius:8px;vertical-align:middle">
+      <span id="lora-desc" style="display:inline-block;margin-left:10px;font-size:.8rem;color:var(--dim);vertical-align:middle"></span>
+    </div>
     <button id="go">✨ 生成</button>
     <div class="bar" id="bar"><i></i></div>
     <div id="status"></div>
@@ -58,17 +67,20 @@
 
 <script>
 const $ = id => document.getElementById(id);
-// ★ 部署后把这里改成你的后端地址 (cloudflared 隧道 https 地址)
-//    隧道地址每次重启 cloudflared 会变; 变了就改这里, 或让访客在浏览器 localStorage 设 api_base
-const API = localStorage.getItem('api_base') || 'https://suitable-acts-lewis-else.trycloudflare.com';
+// ★ 域名已固定 (命名隧道, 永久不变). 不再读 localStorage 的 api_base --
+//   临时隧道时代让访客自设 api_base 的兜底已废弃: 旧值会指向死掉的 trycloudflare 地址,
+//   覆盖掉正确默认值, 导致 "Failed to fetch". 域名固定后访客无需也无法再覆盖.
+const API = 'https://api.airpaint.xyz';
 $('token').value = localStorage.getItem('token') || '';
-$('saveTok').onclick = () => { localStorage.setItem('token', $('token').value.trim()); loadWorkflows(); };
+$('saveTok').onclick = () => { localStorage.setItem('token', $('token').value.trim()); loadWorkflows(); loadLoras(); };
 
 let workflows = [];
 async function api(path, opts = {}) {
   opts.headers = Object.assign({ 'Authorization': 'Bearer ' + $('token').value.trim() }, opts.headers);
   if (opts.json) { opts.method = opts.method || 'POST'; opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(opts.json); }
-  const r = await fetch(API + path, opts);
+  let r;
+  try { r = await fetch(API + path, opts); }
+  catch (e) { throw new Error('连不上服务器 ' + API + ' (网络问题, 或还在用旧地址 -- 请直接打开 https://airpaint.xyz)'); }
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.detail || ('HTTP ' + r.status));
   return data;
@@ -89,6 +101,25 @@ function updateSizes() {
 }
 $('workflow').onchange = updateSizes;
 
+let loras = [];
+async function loadLoras() {
+  try {
+    loras = await api('/api/loras');
+    $('lora').innerHTML = '<option value="">无 LoRA (原生模型)</option>' +
+      loras.map(l => `<option value="${l.key}">${l.name}</option>`).join('');
+  } catch (e) { /* LoRA 可选, 拉不到不影响基础出图 */ }
+}
+function updateLoraPreview() {
+  const l = loras.find(x => x.key === $('lora').value);
+  const box = $('lora-preview');
+  if (!l) { box.style.display = 'none'; return; }
+  $('lora-desc').textContent = l.description || '';
+  if (l.preview) { $('lora-img').src = l.preview; $('lora-img').style.display = ''; }
+  else { $('lora-img').style.display = 'none'; $('lora-img').removeAttribute('src'); }
+  box.style.display = (l.preview || l.description) ? '' : 'none';
+}
+$('lora').onchange = updateLoraPreview;
+
 let polling = null;
 $('go').onclick = async () => {
   const prompt = $('prompt').value.trim();
@@ -97,7 +128,9 @@ $('go').onclick = async () => {
   $('bar').style.display = 'block'; $('status').className = '';
   clearInterval(polling);
   try {
-    const job = await api('/api/jobs', { json: { workflow: $('workflow').value, prompt, size: $('size').value || undefined } });
+    const body = { workflow: $('workflow').value, prompt, size: $('size').value || undefined, lora: $('lora').value || undefined };
+    if (body.lora) { const s = parseFloat($('lora-strength').value); if (!isNaN(s)) body.strength = s; }
+    const job = await api('/api/jobs', { json: body });
     $('promptEn').textContent = '→ ' + job.prompt_en;
     polling = setInterval(() => poll(job.id), 2000);
   } catch (e) { done('⚠ ' + e.message, true); }
@@ -126,6 +159,7 @@ function addToGallery(src) {
   while ($('gallery').children.length > 12) $('gallery').lastChild.remove();
 }
 loadWorkflows();
+loadLoras();
 </script>
 </body>
 </html>
