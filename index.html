@@ -224,6 +224,9 @@
     animation: fadeIn .3s ease;
   }
   .translate-preview textarea { min-height: 80px; font-size: .88rem; }
+  .breakdown-box { display: none; border: 1px solid #e0e0e0; border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; font-size: .82rem; line-height: 1.6; }
+  .breakdown-box .bd-title { font-weight: 600; margin-bottom: 2px; }
+  .breakdown-box .bd-row b { color: #888; font-weight: 500; margin-right: 4px; }
   .token-row { display: flex; gap: 10px; align-items: center; }
   .token-row .btn { white-space: nowrap; }
   .hint {
@@ -289,6 +292,7 @@
     </div>
 
     <div id="translate-preview" class="translate-preview">
+      <div id="breakdown" class="breakdown-box"></div>
       <textarea id="promptEnEdit" placeholder="翻译结果（可编辑后再生成）"></textarea>
       <div class="row" style="margin-top: 10px;">
         <button id="confirm" type="button" class="btn btn-primary btn-flex">✨ 确认生成</button>
@@ -380,7 +384,17 @@ function jobsBody(promptEn, promptRaw) {
   return body;
 }
 async function doTranslate() {
-  return (await api('/api/translate', { json: { prompt: $('prompt').value.trim() } })).prompt_en;
+  return await api('/api/translate', { json: { prompt: $('prompt').value.trim() } });
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+const BD_LABELS = { scene: '场景', composition: '构图', mood: '情绪', lighting: '光影', style: '风格' };
+function renderBreakdown(bd) {
+  const box = $('breakdown');
+  if (!bd || typeof bd !== 'object') { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const rows = Object.keys(BD_LABELS).filter(k => bd[k]).map(k => `<div class="bd-row"><b>${BD_LABELS[k]}：</b>${escapeHtml(bd[k])}</div>`).join('');
+  if (!rows) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="bd-title">🤖 AI 理解</div>' + rows;
+  box.style.display = 'block';
 }
 async function submitJob(promptEn, promptRaw) {
   const job = await api('/api/jobs', { json: jobsBody(promptEn, promptRaw) });
@@ -395,7 +409,7 @@ $('go').onclick = async () => {
   $('result').style.display = 'none'; $('translate-preview').style.display = 'none';
   $('bar').style.display = 'block'; $('status').className = ''; $('status').textContent = '翻译中…';
   clearInterval(polling); setBusy(true);
-  try { const en = await doTranslate(); await submitJob(en, prompt); }
+  try { const r = await doTranslate(); await submitJob(r.prompt_en, prompt); }
   catch (e) { done('⚠ ' + e.message, true); }
 };
 
@@ -405,8 +419,9 @@ $('preview').onclick = async () => {
   $('bar').style.display = 'block'; $('status').className = ''; $('status').textContent = '翻译中…';
   clearInterval(polling); setBusy(true);
   try {
-    const en = await doTranslate();
-    $('promptEnEdit').value = en;
+    const r = await doTranslate();
+    $('promptEnEdit').value = r.prompt_en;
+    renderBreakdown(r.breakdown);
     $('translate-preview').style.display = 'block';
     $('bar').style.display = 'none';
     $('status').textContent = '可以编辑上面的翻译结果，再点确认生成';
