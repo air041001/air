@@ -296,6 +296,7 @@
       <textarea id="promptEnEdit" placeholder="翻译结果（可编辑后再生成）"></textarea>
       <div class="row" style="margin-top: 10px;">
         <button id="confirm" type="button" class="btn btn-primary btn-flex">✨ 确认生成</button>
+        <button id="reroll" type="button" class="btn btn-outline btn-flex" style="display:none">🎲 再来一版</button>
         <button id="editCancel" type="button" class="btn btn-ghost">取消</button>
       </div>
       <div class="hint">
@@ -376,15 +377,17 @@ function updateLoraPreview() {
 $('lora').onchange = updateLoraPreview;
 
 let polling = null;
-const ACTION_BTNS = ['go', 'preview', 'confirm'];
+const ACTION_BTNS = ['go', 'preview', 'confirm', 'reroll'];
 function setBusy(b) { ACTION_BTNS.forEach(id => $(id).disabled = b); }
 function jobsBody(promptEn, promptRaw) {
   const body = { workflow: $('workflow').value, prompt_en: promptEn, prompt: promptRaw, size: $('size').value || undefined, lora: $('lora').value || undefined };
   if (body.lora) { const s = parseFloat($('lora-strength').value); if (!isNaN(s)) body.strength = s; }
   return body;
 }
-async function doTranslate() {
-  return await api('/api/translate', { json: { prompt: $('prompt').value.trim() } });
+async function doTranslate(opts = {}) {
+  const json = { prompt: $('prompt').value.trim() };
+  if (opts.reroll) json.reroll = true;   // 抽卡再抽: 高温重出一版不同分解 (后端跳过缓存)
+  return await api('/api/translate', { json });
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 const BD_LABELS = { scene: '场景', composition: '构图', mood: '情绪', lighting: '光影', style: '风格' };
@@ -393,10 +396,14 @@ function renderBreakdown(bd) {
   if (!bd || typeof bd !== 'object') { box.style.display = 'none'; box.innerHTML = ''; return; }
   const rows = Object.keys(BD_LABELS).filter(k => bd[k]).map(k => `<div class="bd-row"><b>${BD_LABELS[k]}：</b>${escapeHtml(bd[k])}</div>`).join('');
   if (!rows) { box.style.display = 'none'; box.innerHTML = ''; return; }
-  box.innerHTML = '<div class="bd-title">🤖 AI 理解</div>' + rows;
+  box.innerHTML = '<div class="bd-title"> AI 理解</div>' + rows;
   box.style.display = 'block';
 }
 async function submitJob(promptEn, promptRaw) {
+  // 令牌可能是页面加载后才填的: loadWorkflows 只在加载/点保存时跑, 这里补拉一次,
+  // 避免下拉框空 -> workflow="" -> /api/jobs 400 未知工作流 (手机上不点保存直接生成必踩)
+  if (!workflows.length) await loadWorkflows();
+  if (!workflows.length) throw new Error('未加载到工作流，请检查令牌是否有效并点「保存」');
   const job = await api('/api/jobs', { json: jobsBody(promptEn, promptRaw) });
   $('promptEn').innerHTML = '<strong>提示词：</strong>' + job.prompt_en;
   $('status').textContent = '已提交，排队中…';
@@ -422,9 +429,23 @@ $('preview').onclick = async () => {
     const r = await doTranslate();
     $('promptEnEdit').value = r.prompt_en;
     renderBreakdown(r.breakdown);
+    // 只有 LLM 路径 (有 breakdown) 才能给「再来一版」; 全命中词典的快速路径无可变, 隐藏按钮
+    $('reroll').style.display = r.breakdown ? '' : 'none';
     $('translate-preview').style.display = 'block';
     $('bar').style.display = 'none';
     $('status').textContent = '可以编辑上面的翻译结果，再点确认生成';
+    setBusy(false);
+  } catch (e) { done('⚠ ' + e.message, true); }
+};
+$('reroll').onclick = async () => {
+  $('bar').style.display = 'block'; $('status').className = ''; $('status').textContent = '换一版理解中…';
+  setBusy(true);
+  try {
+    const r = await doTranslate({ reroll: true });
+    $('promptEnEdit').value = r.prompt_en;
+    renderBreakdown(r.breakdown);
+    $('bar').style.display = 'none';
+    $('status').textContent = '换个理解了，可继续编辑或再来一版';
     setBusy(false);
   } catch (e) { done('⚠ ' + e.message, true); }
 };
