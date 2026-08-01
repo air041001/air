@@ -224,6 +224,12 @@
     animation: fadeIn .3s ease;
   }
   .translate-preview textarea { min-height: 80px; font-size: .88rem; }
+  .ref-img-row { margin-top: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .ref-img-label { cursor: pointer; color: #8ab4f8; font-size: .85rem; border: 1px dashed #555; padding: 6px 12px; border-radius: 8px; }
+  .ref-img-label:hover { border-color: #8ab4f8; }
+  .ref-preview { display: none; align-items: center; gap: 6px; }
+  .ref-preview img { height: 56px; border-radius: 6px; border: 1px solid #444; }
+  .ref-preview button { padding: 2px 8px; line-height: 1; }
   .breakdown-box { display: none; border: 1px solid #e0e0e0; border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; font-size: .82rem; line-height: 1.6; }
   .breakdown-box .bd-title { font-weight: 600; margin-bottom: 2px; }
   .breakdown-box .bd-row b { color: #888; font-weight: 500; margin-right: 4px; }
@@ -251,23 +257,103 @@
     letter-spacing: .3px;
   }
   .footer a { color: var(--accent-2); text-decoration: none; }
+
+  /* 登录门禁 */
+  .login-overlay { position: fixed; inset: 0; background: var(--bg);
+    background-image: radial-gradient(at 20% 0%, rgba(127,90,240,.08) 0, transparent 50%), radial-gradient(at 80% 100%, rgba(255,139,167,.06) 0, transparent 50%);
+    display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 100; }
+  .login-card { width: 100%; max-width: 360px; text-align: center; }
+  .login-card h1 { font-size: 1.6rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 6px; }
+  .login-card .sub { color: var(--dim); font-size: .85rem; margin-bottom: 24px; }
+  .login-card input { width: 100%; background: var(--panel-2); color: var(--fg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; font-size: 1rem; text-align: center; }
+  .login-card input:focus { outline: none; border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(127,90,240,.12); }
+  .login-err { margin-top: 12px; font-size: .85rem; color: var(--err); min-height: 1.2em; }
+
+  /* 工具栏 + 下拉面板 (公告/教程) */
+  .toolbar { display: flex; justify-content: center; gap: 10px; margin-bottom: 16px; }
+  .panel { display: none; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .panel.open { display: block; }
+  .panel-inner { padding: 14px 16px 16px; }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .tab { background: transparent; color: var(--dim); border: none; padding: 8px 14px; cursor: pointer; font-size: .9rem; font-weight: 600; border-bottom: 2px solid transparent; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-pane h3 { font-size: .95rem; color: var(--accent); margin: 16px 0 6px; }
+  .tab-pane h3:first-child { margin-top: 0; }
+  .tab-pane p, .tab-pane li { font-size: .88rem; color: var(--fg); line-height: 1.7; }
+  .tab-pane ul { padding-left: 18px; margin: 4px 0 8px; }
+  .news-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .news-item:last-child { border-bottom: none; }
+  .news-date { color: var(--dim); font-size: .78rem; margin-right: 6px; }
+  .news-tag { display: inline-block; background: var(--panel-2); color: var(--accent-2); font-size: .75rem; padding: 1px 8px; border-radius: 6px; margin-right: 6px; }
 </style>
 </head>
 <body>
-<div class="wrap">
+<!-- 登录门禁 -->
+<div id="login" class="login-overlay">
+  <div class="login-card">
+    <h1>air 的绘图小屋</h1>
+    <div class="sub">输入邀请码进入</div>
+    <input type="password" id="loginCode" placeholder="邀请码" autocomplete="off">
+    <button id="loginBtn" class="btn btn-primary" style="width:100%;margin-top:14px">进入</button>
+    <div id="loginErr" class="login-err"></div>
+  </div>
+</div>
+
+<!-- 主面板（登录后显示） -->
+<div id="app" class="wrap" style="display:none">
   <div class="header">
     <h1>air 的绘图小屋</h1>
     <div class="sub">说中文，自动变成模型听得懂的提示词</div>
   </div>
+  <div class="toolbar">
+    <button id="navBtn" type="button" class="btn btn-ghost btn-sm">☰ 公告/教程</button>
+    <button id="logoutBtn" type="button" class="btn btn-ghost btn-sm">退出</button>
+  </div>
+  <div id="panel" class="panel">
+    <div class="panel-inner">
+      <div class="tabs">
+        <button class="tab active" data-tab="news">更新公告</button>
+        <button class="tab" data-tab="guide">教程</button>
+      </div>
+      <div id="pane-news" class="tab-pane">
+        <div class="news-item"><span class="news-date">2026-07-31</span><span class="news-tag">新</span><b>参考图理解</b><br>上传一张图，AI 自动提取它的氛围/配色/光影，画一张同氛围的图（不是复刻原图）。只丢图也行。</div>
+        <div class="news-item"><span class="news-date">2026-07-30</span><span class="news-tag">新</span><b>双工作流：快速 / 精修</b><br>顶部下拉切换。「快速」直接出图；「精修」出图后自动修脸和手的细节，质量更好但约 90 秒。</div>
+        <div class="news-item"><span class="news-date">2026-07-29</span><b>🎲 再来一版</b><br>预览翻译后可点「再来一版」，同一句话换一版不同解读（场景/光影/情绪），挑你喜欢的。</div>
+        <div class="news-item"><span class="news-date">2026-07-29</span><b>词典持续扩充</b><br>更多中文词直接命中精准 danbooru tag，翻译更稳。</div>
+      </div>
+      <div id="pane-guide" class="tab-pane" style="display:none">
+        <h3>为什么中文要翻译</h3>
+        <p>出图模型（Anima）只懂英文 danbooru tag，比如 <code>1girl, white hair, smile</code>。你输中文，系统自动翻成 tag 再画。点「先看看翻译」可以检查或手动改。</p>
+        <h3>LoRA 是什么</h3>
+        <p>风格"插件"，叠在模型上改变画风（比如某某画师画风），生成特定模型无法画出的人物等。<b>强度</b> 0~1：1 = 满强度，太高会变形崩坏，0 = 不用。不选就是原生模型。</p>
+        <h3>参考图</h3>
+        <p>上传一张氛围参考图，AI 提取它的光影/配色/场景（<b>不抄图里的人物</b>），配合输入的文字出图。最好图 + 文字一起：文字给主体，图给氛围。</p>
+        <h3>快速 vs 精修</h3>
+        <p>快速 = 直接出图；精修 = 出图后自动修脸和手的细节，质量更好但大约要 90 秒。要质量选精修，要速度选快速。</p>
+        <h3>再来一版</h3>
+        <p>同一句话，AI 能给不同解读（场景/光影/情绪不同）。点「再来一版」换一版，多抽几次挑最对的。</p>
+      </div>
+    </div>
+  </div>
 
   <div class="card">
-    <div class="token-row">
-      <input type="password" id="token" placeholder="输入邀请码">
-      <button id="saveTok" type="button" class="btn btn-ghost btn-sm">保存</button>
+    <input type="hidden" id="token">
+
+    <div>
+      <textarea id="prompt" placeholder="例：一个白发蓝眼睛的猫耳少女，穿着白色连衣裙，站在樱花树下，微笑"></textarea>
     </div>
 
-    <div style="margin-top: 16px;">
-      <textarea id="prompt" placeholder="例：一个白发蓝眼睛的猫耳少女，穿着白色连衣裙，站在樱花树下，微笑"></textarea>
+    <div class="ref-img-row">
+      <label class="ref-img-label">
+        <input type="file" id="ref-file" accept="image/*" hidden>
+        🖼️ 参考图（可选·提取氛围）
+      </label>
+      <div id="ref-preview" class="ref-preview">
+        <img id="ref-thumb" alt="">
+        <button id="ref-clear" type="button" class="btn btn-ghost btn-sm">×</button>
+      </div>
     </div>
 
     <div class="row tight">
@@ -327,8 +413,45 @@
 <script>
 const $ = id => document.getElementById(id);
 const API = 'https://api.airpaint.xyz';
-$('token').value = localStorage.getItem('token') || '';
-$('saveTok').onclick = () => { localStorage.setItem('token', $('token').value.trim()); loadWorkflows(); loadLoras(); };
+// ---- 登录门禁 + 下拉面板 ----
+async function enterApp(token) {
+  $('token').value = token;
+  try {
+    await api('/api/auth/check');                 // 只验 token (verify_token, 不查日限不耗配额)
+    localStorage.setItem('token', token);
+    await loadWorkflows();
+    await loadLoras();
+    $('login').style.display = 'none';
+    $('app').style.display = '';
+  } catch (e) {
+    localStorage.removeItem('token');
+    $('token').value = '';
+    showLogin(e.message || '邀请码无效');
+  }
+}
+function showLogin(err) {
+  $('login').style.display = '';
+  $('app').style.display = 'none';
+  $('loginErr').textContent = err || '';
+  $('loginCode').focus();
+}
+$('loginBtn').onclick = async () => {
+  const code = $('loginCode').value.trim();
+  if (!code) return;
+  $('loginBtn').disabled = true;
+  $('loginErr').textContent = '验证中…';
+  await enterApp(code);
+  $('loginBtn').disabled = false;
+};
+$('loginCode').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
+$('logoutBtn').onclick = () => { localStorage.removeItem('token'); $('token').value = ''; $('loginCode').value = ''; showLogin('已退出，请重新输入邀请码'); };
+$('navBtn').onclick = () => { $('panel').classList.toggle('open'); };
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
+  $('pane-' + t.dataset.tab).style.display = '';
+});
 
 let workflows = [];
 async function api(path, opts = {}) {
@@ -343,12 +466,9 @@ async function api(path, opts = {}) {
 }
 
 async function loadWorkflows() {
-  try {
-    workflows = await api('/api/workflows');
-    $('workflow').innerHTML = workflows.map(w => `<option value="${w.name}">${w.label}</option>`).join('');
-    updateSizes();
-    $('status').textContent = '';
-  } catch (e) { $('status').textContent = '⚠ ' + e.message; $('status').className = 'err'; }
+  workflows = await api('/api/workflows');
+  $('workflow').innerHTML = workflows.map(w => `<option value="${w.name}">${w.label}</option>`).join('');
+  updateSizes();
 }
 function updateSizes() {
   const w = workflows.find(x => x.name === $('workflow').value);
@@ -387,8 +507,35 @@ function jobsBody(promptEn, promptRaw) {
 async function doTranslate(opts = {}) {
   const json = { prompt: $('prompt').value.trim() };
   if (opts.reroll) json.reroll = true;   // 抽卡再抽: 高温重出一版不同分解 (后端跳过缓存)
+  if (refImage) json.image = refImage;    // ③ 参考图: 视觉 LLM 提氛围 (图不进 ComfyUI, 走 txt2img)
   return await api('/api/translate', { json });
 }
+
+// ③ 参考图上传: 缩到 768px / JPEG 0.85 再 base64 (省 token + 加速), 存 data URI 到 refImage
+let refImage = null;
+function fileToResizedDataURL(file, maxDim, quality, cb) {
+  const img = new Image();
+  img.onload = () => {
+    let w = img.width, h = img.height;
+    if (w > h && w > maxDim) { h = Math.round(h * maxDim / w); w = maxDim; }
+    else if (h > maxDim) { w = Math.round(w * maxDim / h); h = maxDim; }
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    c.getContext('2d').drawImage(img, 0, 0, w, h);
+    cb(c.toDataURL('image/jpeg', quality));
+  };
+  img.src = URL.createObjectURL(file);
+}
+$('ref-file').onchange = (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  fileToResizedDataURL(f, 768, 0.85, (url) => {
+    refImage = url;
+    $('ref-thumb').src = url;
+    $('ref-preview').style.display = 'flex';
+  });
+};
+$('ref-clear').onclick = () => { refImage = null; $('ref-file').value = ''; $('ref-preview').style.display = 'none'; };
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 const BD_LABELS = { scene: '场景', composition: '构图', mood: '情绪', lighting: '光影', style: '风格' };
 function renderBreakdown(bd) {
@@ -412,7 +559,7 @@ async function submitJob(promptEn, promptRaw) {
 
 $('go').onclick = async () => {
   const prompt = $('prompt').value.trim();
-  if (!prompt) return;
+  if (!prompt && !refImage) return;
   $('result').style.display = 'none'; $('translate-preview').style.display = 'none';
   $('bar').style.display = 'block'; $('status').className = ''; $('status').textContent = '翻译中…';
   clearInterval(polling); setBusy(true);
@@ -422,7 +569,7 @@ $('go').onclick = async () => {
 
 $('preview').onclick = async () => {
   const prompt = $('prompt').value.trim();
-  if (!prompt) return;
+  if (!prompt && !refImage) return;
   $('bar').style.display = 'block'; $('status').className = ''; $('status').textContent = '翻译中…';
   clearInterval(polling); setBusy(true);
   try {
@@ -483,8 +630,9 @@ function addToGallery(src) {
   $('gallery').prepend(img);
   while ($('gallery').children.length > 12) $('gallery').lastChild.remove();
 }
-loadWorkflows();
-loadLoras();
+// 页面加载: 有存 token 自动验证进主面板, 无则显登录
+if (localStorage.getItem('token')) enterApp(localStorage.getItem('token'));
+else showLogin();
 </script>
 </body>
 </html>
