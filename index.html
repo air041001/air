@@ -287,6 +287,19 @@
   .news-item:last-child { border-bottom: none; }
   .news-date { color: var(--dim); font-size: .78rem; margin-right: 6px; }
   .news-tag { display: inline-block; background: var(--panel-2); color: var(--accent-2); font-size: .75rem; padding: 1px 8px; border-radius: 6px; margin-right: 6px; }
+
+  /* 模式切换 + 对话迭代 (⑤) */
+  .mode-switch { display: flex; margin-bottom: 16px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .mode-btn { flex: 1; background: transparent; color: var(--dim); border: none; padding: 9px 0; cursor: pointer; font-size: .9rem; font-weight: 600; }
+  .mode-btn.active { background: var(--panel-2); color: var(--fg); }
+  .dlg-cur-info { font-size: .82rem; color: var(--dim); margin-top: 8px; word-break: break-word; line-height: 1.6; }
+  .dlg-cur-info b { color: var(--fg); }
+  #dlg-current img { width: 100%; border-radius: 10px; border: 1px solid var(--border); }
+  .dlg-thumbs { display: flex; gap: 6px; margin-top: 10px; overflow-x: auto; }
+  .dlg-thumb { height: 56px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; flex-shrink: 0; }
+  #dlg-delta { width: 100%; background: var(--panel-2); color: var(--fg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: .95rem; margin: 10px 0 8px; }
+  #dlg-status { margin-top: 12px; font-size: .88rem; color: var(--dim); min-height: 1.4em; text-align: center; }
+  #dlg-status.err { color: var(--err); }
 </style>
 </head>
 <body>
@@ -306,6 +319,10 @@
   <div class="header">
     <h1>air 的绘图小屋</h1>
     <div class="sub">说中文，自动变成模型听得懂的提示词</div>
+  </div>
+  <div class="mode-switch">
+    <button id="mode-single" class="mode-btn active" type="button">单张生成</button>
+    <button id="mode-dialog" class="mode-btn" type="button">对话迭代</button>
   </div>
   <div class="toolbar">
     <button id="navBtn" type="button" class="btn btn-ghost btn-sm">☰ 公告/教程</button>
@@ -338,7 +355,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div id="view-single" class="card">
     <input type="hidden" id="token">
 
     <div>
@@ -348,12 +365,18 @@
     <div class="ref-img-row">
       <label class="ref-img-label">
         <input type="file" id="ref-file" accept="image/*" hidden>
-        🖼️ 参考图（可选·提取氛围）
+        <span id="ref-label-text">🖼️ 参考图（可选·提取氛围）</span>
       </label>
       <div id="ref-preview" class="ref-preview">
         <img id="ref-thumb" alt="">
         <button id="ref-clear" type="button" class="btn btn-ghost btn-sm">×</button>
       </div>
+    </div>
+
+    <div id="denoise-row" class="row tight" style="display:none">
+      <label for="denoise">微调强度</label>
+      <input id="denoise" type="range" min="0.1" max="0.9" step="0.05" value="0.35" title="越低越接近原图(微调)，越高改动越大">
+      <span id="denoise-val" style="font-size:.85rem;color:var(--dim);min-width:30px">0.35</span>
     </div>
 
     <div class="row tight">
@@ -401,6 +424,34 @@
         <a class="dl" id="dl" download>下载原图</a>
       </div>
     </div>
+  </div>
+
+  <!-- 对话迭代视图 (⑤ MVP: 骨架 + A/D) -->
+  <div id="view-dialog" class="card" style="display:none">
+    <div id="dlg-start">
+      <textarea id="dlg-prompt" placeholder="先描述一张图（例：一个少女在海边，夕阳，微笑）。生成后可以对话迭代：换一版 / 保氛围"></textarea>
+      <button id="dlg-start-btn" type="button" class="btn btn-primary" style="width:100%;margin-top:10px">✨ 开始迭代</button>
+    </div>
+    <div id="dlg-main" style="display:none">
+      <div id="dlg-current">
+        <img id="dlg-cur-img" alt="" style="display:none">
+        <div id="dlg-cur-info" class="dlg-cur-info">生成中…</div>
+      </div>
+      <div id="dlg-thumbs" class="dlg-thumbs"></div>
+      <input id="dlg-delta" placeholder="改动（可空）：如 换成白天 / 再亮一点 / 换个姿势">
+      <div class="row tight" style="margin-top:6px">
+        <label>微调强度</label>
+        <input id="dlg-denoise" type="range" min="0.1" max="0.9" step="0.05" value="0.35">
+        <span id="dlg-denoise-val" style="font-size:.85rem;color:var(--dim);min-width:30px">0.35</span>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="dlg-redo" type="button" class="btn btn-outline btn-flex">🔁 换一版</button>
+        <button id="dlg-img2img" type="button" class="btn btn-outline btn-flex">🎨 微调</button>
+      </div>
+      <div class="hint">换一版 = 跟着文字改描述再出图（不填=同描述换 seed）；微调 = 直接在这张图上改（强度越低越接近原图）。</div>
+    </div>
+    <div class="bar" id="dlg-bar"><i></i></div>
+    <div id="dlg-status"></div>
   </div>
 
   <div class="gallery" id="gallery"></div>
@@ -475,7 +526,18 @@ function updateSizes() {
   $('size').innerHTML = (w && w.sizes ? w.sizes : ['']).map(s => `<option>${s}</option>`).join('');
   $('size').style.display = w && w.sizes ? '' : 'none';
 }
-$('workflow').onchange = updateSizes;
+$('workflow').onchange = () => { updateSizes(); updateImg2ImgUI(); };
+function isImg2Img() { return $('workflow').value === 'anima-img2img'; }
+function updateImg2ImgUI() {
+  const i2i = isImg2Img();
+  $('denoise-row').style.display = i2i ? '' : 'none';
+  $('ref-label-text').textContent = i2i ? '🖼️ 图生图（上传要改的图）' : '🖼️ 参考图（可选·提取氛围）';
+  $('prompt').placeholder = i2i
+    ? '描述你想要的完整画面（如：穿蓝色连衣裙的少女在海边夕阳下）——图生图要写完整描述，不是只写改动'
+    : '例：一个白发蓝眼睛的猫耳少女，穿着白色连衣裙，站在樱花树下，微笑';
+}
+$('denoise').oninput = () => $('denoise-val').textContent = parseFloat($('denoise').value).toFixed(2);
+$('dlg-denoise').oninput = () => $('dlg-denoise-val').textContent = parseFloat($('dlg-denoise').value).toFixed(2);
 
 let loras = [];
 async function loadLoras() {
@@ -502,12 +564,14 @@ function setBusy(b) { ACTION_BTNS.forEach(id => $(id).disabled = b); }
 function jobsBody(promptEn, promptRaw) {
   const body = { workflow: $('workflow').value, prompt_en: promptEn, prompt: promptRaw, size: $('size').value || undefined, lora: $('lora').value || undefined };
   if (body.lora) { const s = parseFloat($('lora-strength').value); if (!isNaN(s)) body.strength = s; }
+  // img2img: 图 + denoise 走 /api/jobs (不走 /api/translate, 见 D26)
+  if (isImg2Img() && refImage) { body.image = refImage; body.denoise = parseFloat($('denoise').value); }
   return body;
 }
 async function doTranslate(opts = {}) {
   const json = { prompt: $('prompt').value.trim() };
   if (opts.reroll) json.reroll = true;   // 抽卡再抽: 高温重出一版不同分解 (后端跳过缓存)
-  if (refImage) json.image = refImage;    // ③ 参考图: 视觉 LLM 提氛围 (图不进 ComfyUI, 走 txt2img)
+  if (refImage && !isImg2Img()) json.image = refImage;    // ③ 参考图: 视觉 LLM 提氛围 (img2img 模式不发给 translate, 图走 /api/jobs)
   return await api('/api/translate', { json });
 }
 
@@ -630,6 +694,87 @@ function addToGallery(src) {
   $('gallery').prepend(img);
   while ($('gallery').children.length > 12) $('gallery').lastChild.remove();
 }
+// ---- 对话迭代 (⑤ MVP: 骨架 + A/D) ----
+let dialogMode = 'single';
+let sessionId = null;
+function setMode(m) {
+  dialogMode = m;
+  $('mode-single').classList.toggle('active', m === 'single');
+  $('mode-dialog').classList.toggle('active', m === 'dialog');
+  $('view-single').style.display = m === 'single' ? '' : 'none';
+  $('view-dialog').style.display = m === 'dialog' ? '' : 'none';
+}
+$('mode-single').onclick = () => setMode('single');
+$('mode-dialog').onclick = () => setMode('dialog');
+
+async function dlgTurn(body) {
+  body.workflow = $('workflow').value;
+  body.size = $('size').value || undefined;
+  body.lora = $('lora').value || undefined;
+  if (body.lora) { const s = parseFloat($('lora-strength').value); if (!isNaN(s)) body.strength = s; }
+  return await api('/api/dialog/turn', { json: body });
+}
+function dlgBusy(on, msg) {
+  $('dlg-bar').style.display = on ? 'block' : 'none';
+  if (msg !== undefined) { $('dlg-status').textContent = msg; $('dlg-status').className = ''; }
+}
+$('dlg-start-btn').onclick = async () => {
+  const prompt = $('dlg-prompt').value.trim();
+  if (!prompt) return;
+  dlgBusy(true, '翻译 + 生成中…');
+  try {
+    const r = await dlgTurn({ action: 'start', prompt });
+    sessionId = r.session_id;
+    $('dlg-start').style.display = 'none';
+    $('dlg-main').style.display = '';
+    pollDialog();
+  } catch (e) { dlgBusy(false, '⚠ ' + e.message); $('dlg-status').className = 'err'; }
+};
+$('dlg-redo').onclick = () => dlgAction('redo');
+$('dlg-img2img').onclick = () => dlgAction('tweak');
+async function dlgAction(action) {
+  const delta = $('dlg-delta').value.trim();
+  const body = { action, session_id: sessionId, delta };
+  if (action === 'tweak') body.denoise = parseFloat($('dlg-denoise').value);
+  dlgBusy(true, action === 'tweak' ? '微调中…' : '生成中…');
+  try {
+    await dlgTurn(body);
+    $('dlg-delta').value = '';
+    pollDialog();
+  } catch (e) { dlgBusy(false, '⚠ ' + e.message); $('dlg-status').className = 'err'; }
+}
+let dlgPolling = null;
+function pollDialog() {
+  clearInterval(dlgPolling);
+  dlgPolling = setInterval(async () => {
+    try {
+      const s = await api('/api/dialog/' + sessionId);
+      renderDialog(s.turns);
+      const allDone = s.turns.every(t => t.status === 'done' || t.status === 'failed');
+      dlgBusy(!allDone, allDone ? '' : '生成中…');
+      if (allDone) clearInterval(dlgPolling);
+    } catch (e) { /* 网络抖动继续轮询 */ }
+  }, 2000);
+}
+function renderDialog(turns) {
+  if (!turns.length) return;
+  const latest = turns[turns.length - 1];
+  // 当前图 + prompt
+  if (latest.image) {
+    $('dlg-cur-img').src = API + latest.image;
+    $('dlg-cur-img').style.display = '';
+    $('dlg-cur-info').innerHTML = '<b>提示词：</b>' + escapeHtml(latest.prompt_en);
+  } else {
+    $('dlg-cur-img').style.display = 'none';
+    $('dlg-cur-info').textContent = latest.status === 'failed' ? '❌ ' + (latest.error || '失败') : '生成中…';
+  }
+  // 之前的轮次 -> 缩略图条
+  $('dlg-thumbs').innerHTML = turns.slice(0, -1).filter(t => t.image).map(t => {
+    const label = t.action === 'start' ? '初始' : (t.action === 'redo' ? '🔁' : '🌈');
+    return `<img class="dlg-thumb" src="${API}${t.image}" title="${label}${t.delta ? ' ' + escapeHtml(t.delta) : ''}" onclick="window.open('${API}${t.image}')">`;
+  }).join('');
+}
+
 // 页面加载: 有存 token 自动验证进主面板, 无则显登录
 if (localStorage.getItem('token')) enterApp(localStorage.getItem('token'));
 else showLogin();
