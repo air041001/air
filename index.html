@@ -4,476 +4,326 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>air 的绘图小屋</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: {
+      colors: {
+        ink: { 950:'#0b0a12', 900:'#11101c', 800:'#181625', 700:'#211e33', 600:'#2c2842' },
+        accent: { pink:'#ff8ba7', purple:'#7f5af0' },
+      },
+      borderColor: () => ({ DEFAULT: '#211e33' }),
+    }}
+  }
+</script>
 <style>
-  :root {
-    --bg: #0f0e17;
-    --panel: #1a1926;
-    --panel-2: #232130;
-    --fg: #eae7f5;
-    --dim: #8b87a3;
-    --accent: #ff8ba7;
-    --accent-2: #7f5af0;
-    --ok: #2cb67d;
-    --err: #ff6b6b;
-    --border: #2e2a40;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    background-image:
-      radial-gradient(at 20% 0%, rgba(127, 90, 240, .08) 0, transparent 50%),
-      radial-gradient(at 80% 100%, rgba(255, 139, 167, .06) 0, transparent 50%);
-    color: var(--fg);
-    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 24px 16px;
-  }
-  .wrap { width: 100%; max-width: 680px; }
-  .header {
-    text-align: center;
-    margin-bottom: 28px;
-    padding: 20px 0 8px;
-  }
-  .header h1 {
-    font-size: 1.6rem;
-    font-weight: 700;
-    letter-spacing: .5px;
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 6px;
-  }
-  .header .sub {
-    color: var(--dim);
-    font-size: .85rem;
-    letter-spacing: .3px;
-  }
-  .card {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 20px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, .25);
-  }
-  .row { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; align-items: center; }
-  .row.tight { margin: 8px 0; }
-  label {
-    color: var(--dim);
-    font-size: .82rem;
-    white-space: nowrap;
-  }
-  textarea, select, input[type=password], input[type=number] {
-    background: var(--panel-2);
-    color: var(--fg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: .95rem;
-    transition: border-color .2s, box-shadow .2s;
-  }
-  textarea:focus, select:focus, input:focus {
-    outline: none;
-    border-color: var(--accent-2);
-    box-shadow: 0 0 0 3px rgba(127, 90, 240, .12);
-  }
-  textarea {
-    width: 100%;
-    min-height: 100px;
-    resize: vertical;
-    line-height: 1.6;
-  }
-  select { cursor: pointer; }
-  input[type=password] { flex: 1; }
-  input[type=number] { width: 72px; text-align: center; }
-  .btn {
-    border: none;
-    border-radius: 10px;
-    padding: 12px 24px;
-    font-size: .95rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform .15s, box-shadow .2s, opacity .2s;
-    letter-spacing: .3px;
-  }
-  .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0, 0, 0, .3); }
-  .btn:active:not(:disabled) { transform: translateY(0); }
-  .btn:disabled { opacity: .45; cursor: not-allowed; }
-  .btn-primary {
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    color: #fff;
-  }
-  .btn-outline {
-    background: transparent;
-    color: var(--accent-2);
-    border: 1.5px solid var(--accent-2);
-  }
-  .btn-ghost {
-    background: transparent;
-    color: var(--dim);
-    border: 1px solid var(--border);
-  }
-  .btn-sm { padding: 8px 16px; font-size: .88rem; }
-  .btn-flex { flex: 1; }
-  #status {
-    margin-top: 12px;
-    font-size: .88rem;
-    color: var(--dim);
-    min-height: 1.4em;
-    text-align: center;
-  }
-  #status.err { color: var(--err); }
-  #result {
-    margin-top: 16px;
-    display: none;
-    animation: fadeIn .4s ease;
-  }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-  #result img {
-    width: 100%;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, .3);
-  }
-  .prompt-en-box {
-    background: var(--panel-2);
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin-top: 10px;
-    font-size: .78rem;
-    color: var(--dim);
-    word-break: break-all;
-    line-height: 1.5;
-  }
-  .prompt-en-box strong { color: var(--accent); font-weight: 500; }
-  .result-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 10px;
-  }
-  a.dl {
-    color: var(--accent-2);
-    font-size: .85rem;
-    text-decoration: none;
-    padding: 6px 14px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    transition: background .2s, border-color .2s;
-  }
-  a.dl:hover { background: var(--panel-2); border-color: var(--accent-2); }
-  .gallery {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 10px;
-    width: 100%;
-    max-width: 680px;
-  }
-  .gallery img {
-    width: 100%;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: transform .2s, box-shadow .2s;
-    border: 1px solid var(--border);
-  }
-  .gallery img:hover { transform: scale(1.03); box-shadow: 0 4px 16px rgba(0, 0, 0, .3); }
-  .bar {
-    height: 3px;
-    background: var(--panel-2);
-    border-radius: 2px;
-    overflow: hidden;
-    margin-top: 12px;
-    display: none;
-  }
-  .bar i {
-    display: block;
-    height: 100%;
-    width: 35%;
-    background: linear-gradient(90deg, var(--accent), var(--accent-2));
-    border-radius: 2px;
-    animation: slide 1.4s ease-in-out infinite;
-  }
-  @keyframes slide { 0% { margin-left: -35%; } 100% { margin-left: 100%; } }
-  .lora-preview-box {
-    display: none;
-    margin-top: 10px;
-    padding: 12px;
-    background: var(--panel-2);
-    border-radius: 10px;
-    border: 1px solid var(--border);
-  }
-  .lora-preview-box img {
-    max-width: 100px;
-    border-radius: 8px;
-    vertical-align: middle;
-    margin-right: 12px;
-  }
-  .lora-preview-box span {
-    display: inline-block;
-    font-size: .82rem;
-    color: var(--dim);
-    vertical-align: middle;
-    line-height: 1.5;
-  }
-  .translate-preview {
-    display: none;
-    margin-top: 12px;
-    animation: fadeIn .3s ease;
-  }
-  .translate-preview textarea { min-height: 80px; font-size: .88rem; }
-  .ref-img-row { margin-top: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .ref-img-label { cursor: pointer; color: #8ab4f8; font-size: .85rem; border: 1px dashed #555; padding: 6px 12px; border-radius: 8px; }
-  .ref-img-label:hover { border-color: #8ab4f8; }
-  .ref-preview { display: none; align-items: center; gap: 6px; }
-  .ref-preview img { height: 56px; border-radius: 6px; border: 1px solid #444; }
-  .ref-preview button { padding: 2px 8px; line-height: 1; }
-  .breakdown-box { display: none; border: 1px solid #e0e0e0; border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; font-size: .82rem; line-height: 1.6; }
-  .breakdown-box .bd-title { font-weight: 600; margin-bottom: 2px; }
-  .breakdown-box .bd-row b { color: #888; font-weight: 500; margin-right: 4px; }
-  .token-row { display: flex; gap: 10px; align-items: center; }
-  .token-row .btn { white-space: nowrap; }
-  .hint {
-    font-size: .78rem;
-    color: var(--dim);
-    margin-top: 6px;
-    line-height: 1.5;
-  }
-  .hint code {
-    background: var(--panel-2);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: "SF Mono", Consolas, monospace;
-    font-size: .75rem;
-  }
-  .footer {
-    text-align: center;
-    margin-top: 32px;
-    padding: 16px;
-    color: var(--dim);
-    font-size: .75rem;
-    letter-spacing: .3px;
-  }
-  .footer a { color: var(--accent-2); text-decoration: none; }
+  :root { color-scheme: dark; }
+  html, body { background:#0b0a12; color:#eae7f5; }
+  textarea, input[type=text], input[type=number], input[type=password], select { background:#11101c; color:#eae7f5; }
+  textarea::placeholder, input::placeholder { color:rgba(234,231,245,.3); }
+  textarea:focus, input:focus, select:focus { outline:none; border-color:#7f5af0; }
+  input[type=range] { accent-color:#7f5af0; }
 
-  /* 登录门禁 */
-  .login-overlay { position: fixed; inset: 0; background: var(--bg);
-    background-image: radial-gradient(at 20% 0%, rgba(127,90,240,.08) 0, transparent 50%), radial-gradient(at 80% 100%, rgba(255,139,167,.06) 0, transparent 50%);
-    display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 100; }
-  .login-card { width: 100%; max-width: 360px; text-align: center; }
-  .login-card h1 { font-size: 1.6rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 6px; }
-  .login-card .sub { color: var(--dim); font-size: .85rem; margin-bottom: 24px; }
-  .login-card input { width: 100%; background: var(--panel-2); color: var(--fg); border: 1px solid var(--border);
-    border-radius: 10px; padding: 12px 14px; font-size: 1rem; text-align: center; }
-  .login-card input:focus { outline: none; border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(127,90,240,.12); }
-  .login-err { margin-top: 12px; font-size: .85rem; color: var(--err); min-height: 1.2em; }
+  .grad-text { background:linear-gradient(135deg,#ff8ba7,#7f5af0); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .grad-btn { background:linear-gradient(135deg,#ff8ba7,#7f5af0); transition:filter .15s; }
+  .grad-btn:hover:not(:disabled) { filter:brightness(1.08); }
+  .grad-btn:disabled { opacity:.5; cursor:not-allowed; }
+  .glass { background:rgba(24,22,37,.7); backdrop-filter:blur(8px); }
+  .scroll-thin::-webkit-scrollbar { width:6px; height:6px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background:#2c2842; border-radius:3px; }
 
-  /* 工具栏 + 下拉面板 (公告/教程) */
-  .toolbar { display: flex; justify-content: center; gap: 10px; margin-bottom: 16px; }
-  .panel { display: none; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
-  .panel.open { display: block; }
-  .panel-inner { padding: 14px 16px 16px; }
-  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
-  .tab { background: transparent; color: var(--dim); border: none; padding: 8px 14px; cursor: pointer; font-size: .9rem; font-weight: 600; border-bottom: 2px solid transparent; }
-  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-  .tab-pane h3 { font-size: .95rem; color: var(--accent); margin: 16px 0 6px; }
-  .tab-pane h3:first-child { margin-top: 0; }
-  .tab-pane p, .tab-pane li { font-size: .88rem; color: var(--fg); line-height: 1.7; }
-  .tab-pane ul { padding-left: 18px; margin: 4px 0 8px; }
-  .news-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
-  .news-item:last-child { border-bottom: none; }
-  .news-date { color: var(--dim); font-size: .78rem; margin-right: 6px; }
-  .news-tag { display: inline-block; background: var(--panel-2); color: var(--accent-2); font-size: .75rem; padding: 1px 8px; border-radius: 6px; margin-right: 6px; }
+  .chip { transition:all .15s; cursor:pointer; }
+  .chip:hover:not(:disabled) { border-color:#7f5af0; }
+  .chip.active { border-color:#7f5af0; box-shadow:0 0 0 1px #7f5af0; }
+  .seg { transition:all .15s; cursor:pointer; }
+  .seg.active { background:linear-gradient(135deg,#ff8ba7,#7f5af0); color:white; border-color:transparent; }
+  .wf-card { transition:all .15s; cursor:pointer; }
+  .wf-card:hover { border-color:#7f5af0; }
+  .wf-card.active { border-color:#7f5af0; background:rgba(127,90,240,.12); box-shadow:0 0 0 1px #7f5af0; }
 
-  /* 模式切换 + 对话迭代 (⑤) */
-  .mode-switch { display: flex; margin-bottom: 16px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-  .mode-btn { flex: 1; background: transparent; color: var(--dim); border: none; padding: 9px 0; cursor: pointer; font-size: .9rem; font-weight: 600; }
-  .mode-btn.active { background: var(--panel-2); color: var(--fg); }
-  .dlg-cur-info { font-size: .82rem; color: var(--dim); margin-top: 8px; word-break: break-word; line-height: 1.6; }
-  .dlg-cur-info b { color: var(--fg); }
-  #dlg-current img { width: 100%; border-radius: 10px; border: 1px solid var(--border); }
-  .dlg-thumbs { display: flex; gap: 6px; margin-top: 10px; overflow-x: auto; }
-  .dlg-thumb { height: 56px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; flex-shrink: 0; }
-  #dlg-delta { width: 100%; background: var(--panel-2); color: var(--fg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: .95rem; margin: 10px 0 8px; }
-  #dlg-status { margin-top: 12px; font-size: .88rem; color: var(--dim); min-height: 1.4em; text-align: center; }
-  #dlg-status.err { color: var(--err); }
+  .bar { height:3px; background:#232130; border-radius:2px; overflow:hidden; margin-top:10px; display:none; }
+  .bar i { display:block; height:100%; width:35%; background:linear-gradient(90deg,#ff8ba7,#7f5af0); border-radius:2px; animation:slide 1.4s ease-in-out infinite; }
+  @keyframes slide { 0%{margin-left:-35%;} 100%{margin-left:100%;} }
+
+  .panel { max-height:0; overflow:hidden; transition:max-height .3s ease; }
+  .panel.open { max-height:70vh; overflow-y:auto; }
+  .tab-btn.active { color:#ff8ba7; border-color:#ff8ba7 !important; }
+  .tab-pane { display:none; }
+  .tab-pane.active { display:block; }
+
+  .ref-preview img { height:56px; border-radius:6px; border:1px solid #2c2842; }
+  .hist-thumb { transition:transform .15s, box-shadow .2s; }
+  .hist-thumb:hover { transform:scale(1.05); box-shadow:0 4px 16px rgba(0,0,0,.4); border-color:#7f5af0; }
+  .lineage-thumb { transition:border-color .15s; cursor:pointer; }
+  .lineage-thumb:hover { border-color:#7f5af0; }
 </style>
 </head>
-<body>
-<!-- 登录门禁 -->
-<div id="login" class="login-overlay">
-  <div class="login-card">
-    <h1>air 的绘图小屋</h1>
-    <div class="sub">输入邀请码进入</div>
-    <input type="password" id="loginCode" placeholder="邀请码" autocomplete="off">
-    <button id="loginBtn" class="btn btn-primary" style="width:100%;margin-top:14px">进入</button>
-    <div id="loginErr" class="login-err"></div>
+<body class="min-h-screen">
+
+<input type="hidden" id="token">
+
+<!-- ===================== 登录 ===================== -->
+<div id="login" class="min-h-screen flex items-center justify-center px-4"
+     style="background-image:radial-gradient(at 20% 0%,rgba(127,90,240,.12),transparent 50%),radial-gradient(at 80% 100%,rgba(255,139,167,.10),transparent 50%);">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-8">
+      <h1 class="text-3xl font-bold grad-text">air 的绘图小屋</h1>
+      <p class="text-sm text-white/45 mt-2">说中文，自动出图——不用写英文提示词</p>
+    </div>
+    <div class="rounded-2xl border border-ink-700 bg-ink-800/60 p-6">
+      <label class="text-xs text-white/50 block mb-2">邀请码</label>
+      <input type="password" id="loginCode" placeholder="输入邀请码" autocomplete="off"
+        class="w-full border border-ink-600 rounded-lg px-3 py-2.5 text-sm placeholder:text-white/30">
+      <button id="loginBtn" class="grad-btn w-full py-2.5 rounded-lg font-medium mt-4">进入</button>
+      <div id="loginErr" class="text-xs text-red-400 mt-3 text-center min-h-[1rem]"></div>
+      <div class="text-xs text-white/40 mt-1 text-center">需要邀请码？找 air 要一个</div>
+    </div>
+    <div class="text-center text-[11px] text-white/25 mt-6">airpaint.xyz</div>
   </div>
 </div>
 
-<!-- 主面板（登录后显示） -->
-<div id="app" class="wrap" style="display:none">
-  <div class="header">
-    <h1>air 的绘图小屋</h1>
-    <div class="sub">说中文，自动变成模型听得懂的提示词</div>
-  </div>
-  <div class="mode-switch">
-    <button id="mode-single" class="mode-btn active" type="button">单张生成</button>
-    <button id="mode-dialog" class="mode-btn" type="button">对话迭代</button>
-  </div>
-  <div class="toolbar">
-    <button id="navBtn" type="button" class="btn btn-ghost btn-sm">☰ 公告/教程</button>
-    <button id="logoutBtn" type="button" class="btn btn-ghost btn-sm">退出</button>
-  </div>
-  <div id="panel" class="panel">
-    <div class="panel-inner">
-      <div class="tabs">
-        <button class="tab active" data-tab="news">更新公告</button>
-        <button class="tab" data-tab="guide">教程</button>
-      </div>
-      <div id="pane-news" class="tab-pane">
-        <div class="news-item"><span class="news-date">2026-07-31</span><span class="news-tag">新</span><b>参考图理解</b><br>上传一张图，AI 自动提取它的氛围/配色/光影，画一张同氛围的图（不是复刻原图）。只丢图也行。</div>
-        <div class="news-item"><span class="news-date">2026-07-30</span><span class="news-tag">新</span><b>双工作流：快速 / 精修</b><br>顶部下拉切换。「快速」直接出图；「精修」出图后自动修脸和手的细节，质量更好但约 90 秒。</div>
-        <div class="news-item"><span class="news-date">2026-07-29</span><b>🎲 再来一版</b><br>预览翻译后可点「再来一版」，同一句话换一版不同解读（场景/光影/情绪），挑你喜欢的。</div>
-        <div class="news-item"><span class="news-date">2026-07-29</span><b>词典持续扩充</b><br>更多中文词直接命中精准 danbooru tag，翻译更稳。</div>
-      </div>
-      <div id="pane-guide" class="tab-pane" style="display:none">
-        <h3>为什么中文要翻译</h3>
-        <p>出图模型（Anima）只懂英文 danbooru tag，比如 <code>1girl, white hair, smile</code>。你输中文，系统自动翻成 tag 再画。点「先看看翻译」可以检查或手动改。</p>
-        <h3>LoRA 是什么</h3>
-        <p>风格"插件"，叠在模型上改变画风（比如某某画师画风），生成特定模型无法画出的人物等。<b>强度</b> 0~1：1 = 满强度，太高会变形崩坏，0 = 不用。不选就是原生模型。</p>
-        <h3>参考图</h3>
-        <p>上传一张氛围参考图，AI 提取它的光影/配色/场景（<b>不抄图里的人物</b>），配合输入的文字出图。最好图 + 文字一起：文字给主体，图给氛围。</p>
-        <h3>快速 vs 精修</h3>
-        <p>快速 = 直接出图；精修 = 出图后自动修脸和手的细节，质量更好但大约要 90 秒。要质量选精修，要速度选快速。</p>
-        <h3>再来一版</h3>
-        <p>同一句话，AI 能给不同解读（场景/光影/情绪不同）。点「再来一版」换一版，多抽几次挑最对的。</p>
-      </div>
-    </div>
-  </div>
+<!-- ===================== 工坊 ===================== -->
+<div id="app" class="min-h-screen flex flex-col" style="display:none">
 
-  <div id="view-single" class="card">
-    <input type="hidden" id="token">
-
+  <header class="px-4 sm:px-6 py-3 flex items-center justify-between border-b border-ink-800">
     <div>
-      <textarea id="prompt" placeholder="例：一个白发蓝眼睛的猫耳少女，穿着白色连衣裙，站在樱花树下，微笑"></textarea>
+      <h1 class="text-lg sm:text-xl font-bold grad-text">air 的绘图小屋</h1>
+      <p class="text-xs text-white/40 mt-0.5 hidden sm:block">说中文，自动变成模型听得懂的提示词</p>
     </div>
+    <div class="flex items-center gap-2">
+      <button id="navBtn" class="chip text-sm px-3 py-1.5 rounded-lg border border-ink-600 text-white/70">公告/教程</button>
+      <span class="text-xs text-white/40 px-2 hidden sm:inline" id="quota"></span>
+      <button id="logoutBtn" class="chip text-sm px-3 py-1.5 rounded-lg border border-ink-600 text-white/70">退出</button>
+      <button id="paramsToggle" class="chip lg:hidden text-sm px-3 py-1.5 rounded-lg border border-ink-600 text-white/70">参数</button>
+    </div>
+  </header>
 
-    <div class="ref-img-row">
-      <label class="ref-img-label">
-        <input type="file" id="ref-file" accept="image/*" hidden>
-        <span id="ref-label-text">🖼️ 参考图（可选·提取氛围）</span>
-      </label>
-      <div id="ref-preview" class="ref-preview">
-        <img id="ref-thumb" alt="">
-        <button id="ref-clear" type="button" class="btn btn-ghost btn-sm">×</button>
+  <!-- 公告/教程 -->
+  <div id="panel" class="panel border-b border-ink-800 bg-ink-900/60 scroll-thin">
+    <div class="max-w-3xl mx-auto p-4">
+      <div class="flex gap-4 mb-3 border-b border-ink-700">
+        <button class="tab-btn active text-sm pb-2 border-b-2 border-transparent" data-tab="news">更新公告</button>
+        <button class="tab-btn text-sm pb-2 text-white/50 border-b-2 border-transparent" data-tab="guide">教程</button>
       </div>
-    </div>
-
-    <div id="denoise-row" class="row tight" style="display:none">
-      <label for="denoise">微调强度</label>
-      <input id="denoise" type="range" min="0.1" max="0.9" step="0.05" value="0.35" title="越低越接近原图(微调)，越高改动越大">
-      <span id="denoise-val" style="font-size:.85rem;color:var(--dim);min-width:30px">0.35</span>
-    </div>
-
-    <div class="row tight">
-      <select id="workflow"></select>
-      <select id="size"></select>
-    </div>
-
-    <div class="row tight">
-      <select id="lora" style="flex:1"><option value="">无 LoRA（原生模型）</option></select>
-      <label for="lora-strength">强度</label>
-      <input id="lora-strength" type="number" min="0" max="1" step="0.05" value="1" title="LoRA 强度 (0~1, 1=满)">
-    </div>
-
-    <div id="lora-preview" class="lora-preview-box">
-      <img id="lora-img" alt="" onerror="this.style.display='none'">
-      <span id="lora-desc"></span>
-    </div>
-
-    <div class="row" style="margin-top: 16px;">
-      <button id="go" class="btn btn-primary btn-flex">✨ 直接生成</button>
-      <button id="preview" type="button" class="btn btn-outline btn-flex">🔍 先看看翻译</button>
-    </div>
-
-    <div id="translate-preview" class="translate-preview">
-      <div id="breakdown" class="breakdown-box"></div>
-      <textarea id="promptEnEdit" placeholder="翻译结果（可编辑后再生成）"></textarea>
-      <div class="row" style="margin-top: 10px;">
-        <button id="confirm" type="button" class="btn btn-primary btn-flex">✨ 确认生成</button>
-        <button id="reroll" type="button" class="btn btn-outline btn-flex" style="display:none">🎲 再来一版</button>
-        <button id="editCancel" type="button" class="btn btn-ghost">取消</button>
+      <div id="pane-news" class="tab-pane active space-y-3 text-sm">
+        <div><span class="text-white/40 text-xs">2026-08-02</span><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-pink/20 text-accent-pink ml-1">新</span><b class="ml-1">图生图 + 对话微调</b><div class="text-white/55 text-xs mt-0.5">选「图生图」工作流可上传图改；出图后点「继续迭代」能在一张图上微调或换一版。</div></div>
+        <div><span class="text-white/40 text-xs">2026-07-31</span><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-pink/20 text-accent-pink ml-1">新</span><b class="ml-1">参考图理解</b><div class="text-white/55 text-xs mt-0.5">上传一张图，AI 自动提取氛围/配色/光影，画同氛围的图（不是复刻原图）。只丢图也行。</div></div>
+        <div><span class="text-white/40 text-xs">2026-07-30</span><b class="ml-2">快速 / 精修双工作流</b><div class="text-white/55 text-xs mt-0.5">「精修」出图后自动修脸和手约 90 秒；「快速」约 12 秒。</div></div>
+        <div><span class="text-white/40 text-xs">2026-07-29</span><b class="ml-2">再来一版</b><div class="text-white/55 text-xs mt-0.5">同一句话换一版不同解读（场景/光影/情绪），多抽挑最对的。</div></div>
       </div>
-      <div class="hint">
-        翻译结果可以直接改，比如删掉不想要的 tag、调整顺序、加权重 <code>(tag:1.5)</code>
-      </div>
-    </div>
-
-    <div class="bar" id="bar"><i></i></div>
-    <div id="status"></div>
-
-    <div id="result">
-      <img id="img" alt="生成结果">
-      <div class="prompt-en-box" id="promptEn"></div>
-      <div class="result-footer">
-        <span></span>
-        <a class="dl" id="dl" download>下载原图</a>
+      <div id="pane-guide" class="tab-pane text-sm leading-relaxed space-y-4 text-white/75">
+        <div><h3 class="text-white font-medium mb-1">基本用法</h3>
+          <p class="text-white/55 text-xs">用中文描述想画的画面，点「生成」即可。想先看 AI 怎么理解，点「先看翻译」——能检查场景/光影/情绪拆解，还能直接改英文 tag 再生成。</p></div>
+        <div><h3 class="text-white font-medium mb-1">快速 / 精修 / 图生图</h3>
+          <p class="text-white/55 text-xs"><b class="text-white/75">快速</b> 直接出图约 12 秒；<b class="text-white/75">精修</b> 出图后自动修脸和手约 90 秒；<b class="text-white/75">图生图</b> 在已有图上改、需上传图。图生图要写<b class="text-white/75">完整画面描述</b>（不是只写"换成白天"），重绘幅度 0.25–0.35 是微调、0.5+ 是大改。</p></div>
+        <div><h3 class="text-white font-medium mb-1">LoRA 是什么</h3>
+          <p class="text-white/55 text-xs">风格"插件"，叠在模型上改画风或固定某个人物。<b class="text-white/75">强度 0~1</b>：太高会变形崩坏，建议从 0.7–0.9 试；不选就是原生模型。</p></div>
+        <div><h3 class="text-white font-medium mb-1">参考图（非图生图时）</h3>
+          <p class="text-white/55 text-xs">上传一张氛围参考图，AI 提取光影/配色/场景（<b class="text-white/75">不抄图里的人物</b>），配合文字出图。文字给主体、图给氛围效果最好。</p></div>
+        <div><h3 class="text-white font-medium mb-1">继续迭代</h3>
+          <p class="text-white/55 text-xs">每张结果图上有「继续迭代」，进入暗房后可以：<b class="text-white/75">换一版</b>（跟着文字改描述重画，留空则换种子）；<b class="text-white/75">微调</b>（直接在这张图上改、保留构图，幅度越低越接近原图）。右侧能看到这张图的演化线。</p></div>
       </div>
     </div>
   </div>
 
-  <!-- 对话迭代视图 (⑤ MVP: 骨架 + A/D) -->
-  <div id="view-dialog" class="card" style="display:none">
-    <div id="dlg-start">
-      <textarea id="dlg-prompt" placeholder="先描述一张图（例：一个少女在海边，夕阳，微笑）。生成后可以对话迭代：换一版 / 保氛围"></textarea>
-      <button id="dlg-start-btn" type="button" class="btn btn-primary" style="width:100%;margin-top:10px">✨ 开始迭代</button>
-    </div>
-    <div id="dlg-main" style="display:none">
-      <div id="dlg-current">
-        <img id="dlg-cur-img" alt="" style="display:none">
-        <div id="dlg-cur-info" class="dlg-cur-info">生成中…</div>
+  <div class="flex-1 flex flex-col lg:flex-row gap-4 p-4">
+
+    <!-- 中 -->
+    <main class="flex-1 flex flex-col gap-4 min-w-0 order-2 lg:order-1">
+      <div class="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
+
+        <!-- 画布 -->
+        <div class="flex-1 flex flex-col min-h-0">
+          <div class="relative flex-1 rounded-2xl overflow-hidden border border-ink-700 bg-ink-800/40 flex items-center justify-center min-h-[320px] lg:min-h-0">
+            <span id="canvasPlaceholder" class="text-white/30 text-sm">生成的图会出现在这里</span>
+            <img id="img" alt="生成结果" class="max-w-full max-h-full object-contain hidden absolute inset-0 m-auto">
+            <div id="canvasBadges" class="absolute bottom-3 left-3 flex gap-1.5 hidden">
+              <span id="badgeWf" class="glass text-xs px-2 py-1 rounded-md"></span>
+              <span id="badgeSize" class="glass text-xs px-2 py-1 rounded-md"></span>
+            </div>
+            <div id="canvasActions" class="absolute top-3 right-3 flex gap-2 hidden">
+              <a id="dl" class="chip glass text-xs px-2.5 py-1.5 rounded-lg border border-ink-600 no-underline" download>下载</a>
+              <button id="toDarkroom" class="grad-btn text-xs px-2.5 py-1.5 rounded-lg font-medium">继续迭代</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI 理解 -->
+        <aside class="w-full lg:w-80 lg:shrink-0 rounded-2xl border border-ink-700 bg-ink-800/60 p-4 flex flex-col gap-3 min-h-0 order-1 lg:order-2">
+          <div class="text-xs font-semibold text-white/50 uppercase tracking-wider">AI 理解</div>
+          <div id="breakdown" class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm shrink-0"></div>
+          <div class="border-t border-ink-700 pt-3 flex flex-col flex-1 min-h-0">
+            <div class="text-xs text-white/50 mb-2 shrink-0">英文提示词（可编辑）</div>
+            <textarea id="promptEnEdit" rows="5"
+              class="w-full flex-1 min-h-[110px] bg-ink-900 border border-ink-600 rounded-lg text-xs p-2.5 resize-y font-mono leading-relaxed"
+              placeholder="先点「先看翻译」，AI 拆解的英文 tag 会出现在这里，可直接编辑"></textarea>
+            <div id="editActions" class="flex gap-2 mt-2 shrink-0 hidden">
+              <button id="confirm" class="grad-btn flex-1 text-xs py-2 rounded-lg font-medium">确认生成</button>
+              <button id="reroll" class="chip text-xs px-3 py-2 rounded-lg border border-ink-600 text-white/70 hidden">再来一版</button>
+              <button id="editCancel" class="chip text-xs px-3 py-2 rounded-lg border border-ink-600 text-white/50">取消</button>
+            </div>
+            <div class="text-[10px] text-white/35 mt-1.5 shrink-0">可直接删 tag、调顺序、加权重 (tag:1.5)，再确认生成</div>
+          </div>
+        </aside>
       </div>
-      <div id="dlg-thumbs" class="dlg-thumbs"></div>
-      <input id="dlg-delta" placeholder="改动（可空）：如 换成白天 / 再亮一点 / 换个姿势">
-      <div class="row tight" style="margin-top:6px">
-        <label>微调强度</label>
-        <input id="dlg-denoise" type="range" min="0.1" max="0.9" step="0.05" value="0.35">
-        <span id="dlg-denoise-val" style="font-size:.85rem;color:var(--dim);min-width:30px">0.35</span>
+
+      <!-- 输入 -->
+      <div class="rounded-2xl border border-ink-700 bg-ink-800/60 p-3 shrink-0">
+        <textarea id="prompt" rows="2"
+          class="w-full bg-transparent text-sm resize-none outline-none border-0 p-0 placeholder:text-white/30"
+          placeholder="描述你想画的… 例：一个白发蓝眼睛的猫耳少女，穿着白色连衣裙，站在樱花树下，微笑"></textarea>
+
+        <div class="mt-2 flex items-center gap-2 flex-wrap">
+          <label class="chip cursor-pointer text-xs text-accent-purple border border-dashed border-ink-600 px-2.5 py-1 rounded-md">
+            <input type="file" id="ref-file" accept="image/*" hidden>
+            <span id="ref-label-text">添加参考图</span>
+          </label>
+          <div id="ref-preview" class="ref-preview items-center gap-2 hidden">
+            <img id="ref-thumb" alt="">
+            <button id="ref-clear" type="button" class="chip text-xs px-2 py-0.5 rounded border border-ink-600 text-white/60">移除</button>
+          </div>
+        </div>
+
+        <div id="denoise-row" class="mt-3 hidden">
+          <div class="text-xs text-white/50 mb-1">重绘幅度</div>
+          <div class="flex items-center gap-2">
+            <input id="denoise" type="range" min="0.1" max="0.9" step="0.05" value="0.35" class="flex-1 accent-accent-pink">
+            <span id="denoise-val" class="text-xs text-accent-pink font-medium w-10 text-right">0.35</span>
+          </div>
+          <div class="text-[10px] text-white/40 mt-1">接近原图 ← → 大改；图生图要写完整画面描述，不是只写改动。</div>
+        </div>
+
+        <div class="flex items-center justify-between mt-3 gap-2 flex-wrap">
+          <span class="hidden md:inline text-xs text-white/35">参数在右侧面板调整 · 同一句话可换一版</span>
+          <div class="flex gap-2 ml-auto">
+            <button id="preview" class="chip text-sm px-4 py-2 rounded-lg border border-ink-600 text-white/80">先看翻译</button>
+            <button id="go" class="grad-btn text-sm px-5 py-2 rounded-lg font-medium">生成</button>
+          </div>
+        </div>
+
+        <div class="bar" id="bar"><i></i></div>
+        <div id="status" class="text-xs mt-2 min-h-[1rem]"></div>
       </div>
-      <div class="row" style="margin-top:8px">
-        <button id="dlg-redo" type="button" class="btn btn-outline btn-flex">🔁 换一版</button>
-        <button id="dlg-img2img" type="button" class="btn btn-outline btn-flex">🎨 微调</button>
+
+      <!-- 历史 -->
+      <div class="rounded-2xl border border-ink-700 bg-ink-800/40 p-3 shrink-0">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-xs font-semibold text-white/50 uppercase tracking-wider">最近作品</div>
+          <span class="text-[10px] text-white/30">本机保存最近 12 张 · 点击放大</span>
+        </div>
+        <div id="gallery" class="flex gap-2 overflow-x-auto scroll-thin pb-1"></div>
       </div>
-      <div class="hint">换一版 = 跟着文字改描述再出图（不填=同描述换 seed）；微调 = 直接在这张图上改（强度越低越接近原图）。</div>
-    </div>
-    <div class="bar" id="dlg-bar"><i></i></div>
-    <div id="dlg-status"></div>
+    </main>
+
+    <!-- 右: 参数 -->
+    <aside id="paramsPanel" class="hidden lg:flex w-full lg:w-72 lg:shrink-0 rounded-2xl border border-ink-700 bg-ink-800/60 p-4 flex-col gap-5 overflow-y-auto scroll-thin lg:max-h-[calc(100vh-90px)] order-1 lg:order-3">
+      <!-- 隐藏原生 select: 值由卡片/宫格驱动, 提交逻辑沿用原 id -->
+      <select id="workflow" class="hidden"></select>
+      <select id="size" class="hidden"></select>
+      <select id="lora" class="hidden"></select>
+      <div>
+        <div class="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2.5">工作流</div>
+        <div id="wfCards" class="flex flex-col gap-2"></div>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2.5">尺寸</div>
+        <div id="sizeGrid" class="grid grid-cols-3 gap-2"></div>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2.5">LoRA 风格</div>
+        <select id="loraSelect" class="w-full bg-ink-900 border border-ink-600 rounded-lg text-sm px-3 py-2"></select>
+        <div class="flex items-center gap-2 mt-2">
+          <span class="text-xs text-white/40 w-10">强度</span>
+          <input id="lora-strength" type="range" min="0" max="1" step="0.05" value="1" class="flex-1">
+          <span id="lora-strength-val" class="text-xs text-white/60 w-8 text-right">1.0</span>
+        </div>
+        <div id="lora-preview" class="mt-2 p-2.5 rounded-lg bg-ink-900 border border-ink-600 gap-2.5 items-start hidden">
+          <img id="lora-img" class="w-12 h-12 rounded-md object-cover shrink-0 hidden" alt="">
+          <span id="lora-desc" class="text-xs text-white/55 leading-relaxed"></span>
+        </div>
+      </div>
+    </aside>
   </div>
+</div>
 
-  <div class="gallery" id="gallery"></div>
+<!-- ===================== 暗房 ===================== -->
+<div id="darkroom" class="min-h-screen flex-col" style="display:none">
+  <header class="px-4 sm:px-6 py-3 flex items-center gap-3 border-b border-ink-800">
+    <button id="drBack" class="chip text-sm px-3 py-1.5 rounded-lg border border-ink-600 text-white/70">返回工坊</button>
+    <div class="flex-1 min-w-0">
+      <div class="text-sm font-medium truncate">迭代暗房</div>
+      <div class="text-xs text-white/40 hidden sm:block">基于一张图持续改，每张都继承上一张</div>
+    </div>
+    <span class="text-xs text-white/40 hidden sm:inline" id="drMeta"></span>
+    <button id="drAbandon" class="chip text-sm px-3 py-1.5 rounded-lg border border-ink-600 text-white/70">放弃</button>
+  </header>
 
-  <div class="footer">
-    airpaint.xyz · 用中文画出想法
+  <div class="flex-1 flex flex-col lg:flex-row gap-4 p-4">
+    <main class="flex-1 flex flex-col gap-4 min-w-0">
+
+      <div class="relative flex-1 rounded-2xl overflow-hidden border border-ink-700 bg-ink-800/40 flex items-center justify-center min-h-[300px] lg:min-h-[400px]">
+        <img id="dr-cur-img" alt="" class="max-w-full max-h-full object-contain hidden absolute inset-0 m-auto">
+        <div id="dr-start" class="w-full max-w-md p-4">
+          <div class="text-sm text-white/60 mb-2 text-center">先描述一张图，生成后即可在它基础上迭代</div>
+          <textarea id="dlg-prompt" rows="3" class="w-full bg-ink-900 border border-ink-600 rounded-lg text-sm p-3 resize-none"
+            placeholder="例：一个少女在海边，夕阳，微笑"></textarea>
+          <button id="dlg-start-btn" class="grad-btn w-full py-2.5 rounded-lg font-medium mt-3">开始迭代</button>
+        </div>
+        <div id="dlg-cur-info" class="absolute bottom-3 left-3 right-3 glass text-xs px-3 py-1.5 rounded-lg hidden max-h-20 overflow-auto scroll-thin"></div>
+      </div>
+
+      <div id="drControls" class="rounded-2xl border border-ink-700 bg-ink-800/60 p-4 flex flex-col gap-3 hidden">
+        <div class="text-xs font-semibold text-white/50 uppercase tracking-wider">你想怎么改？</div>
+        <textarea id="dlg-delta" rows="2" class="w-full bg-ink-900 border border-ink-600 rounded-lg text-sm p-3 resize-none"
+          placeholder="改动（可空）：换成白天 / 再亮一点 / 换个姿势"></textarea>
+
+        <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
+          <div class="inline-flex rounded-lg border border-ink-600 overflow-hidden shrink-0">
+            <button id="dlg-redo" class="seg px-4 py-2 text-sm text-white/70">换一版</button>
+            <button id="dlg-img2img" class="seg active px-4 py-2 text-sm">微调</button>
+          </div>
+          <div id="dlg-strength-row" class="flex items-center gap-2 flex-1">
+            <span class="text-xs text-white/50 w-16 shrink-0">微调强度</span>
+            <input id="dlg-denoise" type="range" min="0.1" max="0.9" step="0.05" value="0.35" class="flex-1 accent-accent-pink">
+            <span id="dlg-denoise-val" class="text-xs text-accent-pink font-medium w-10 text-right">0.35</span>
+          </div>
+          <button id="dlg-go" class="grad-btn px-6 py-2.5 rounded-lg font-medium shrink-0">生成下一版</button>
+        </div>
+
+        <div class="text-xs text-white/50 pt-2 border-t border-ink-700 leading-relaxed">
+          <span id="dr-desc-redo" class="hidden"><b class="text-white/70">换一版</b>：跟着文字改描述，重新画一张（不填文字则同描述换种子）。</span>
+          <span id="dr-desc-tweak"><b class="text-white/70">微调</b>：直接在这张图上改、保留构图，强度越低越接近原图。</span>
+        </div>
+
+        <div class="bar" id="dlg-bar"><i></i></div>
+        <div id="dlg-status" class="text-xs min-h-[1rem]"></div>
+      </div>
+    </main>
+
+    <aside class="w-full lg:w-64 lg:shrink-0 rounded-2xl border border-ink-700 bg-ink-800/60 p-4 lg:max-h-[calc(100vh-120px)] lg:overflow-y-auto scroll-thin">
+      <div class="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">这张图的演化</div>
+      <div id="dlg-thumbs" class="flex lg:flex-col items-stretch gap-3 overflow-x-auto lg:overflow-visible scroll-thin pb-1"></div>
+    </aside>
   </div>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
 const API = 'https://api.airpaint.xyz';
-// ---- 登录门禁 + 下拉面板 ----
+const HIST_KEY = 'airpaint_history_v1';
+
+// ---------------- 登录 ----------------
 async function enterApp(token) {
   $('token').value = token;
   try {
-    await api('/api/auth/check');                 // 只验 token (verify_token, 不查日限不耗配额)
+    await api('/api/auth/check');
     localStorage.setItem('token', token);
     await loadWorkflows();
     await loadLoras();
+    loadHistory();
     $('login').style.display = 'none';
-    $('app').style.display = '';
+    $('app').style.display = 'flex';
+    $('darkroom').style.display = 'none';
   } catch (e) {
     localStorage.removeItem('token');
     $('token').value = '';
@@ -481,8 +331,9 @@ async function enterApp(token) {
   }
 }
 function showLogin(err) {
-  $('login').style.display = '';
+  $('login').style.display = 'flex';
   $('app').style.display = 'none';
+  $('darkroom').style.display = 'none';
   $('loginErr').textContent = err || '';
   $('loginCode').focus();
 }
@@ -495,15 +346,24 @@ $('loginBtn').onclick = async () => {
   $('loginBtn').disabled = false;
 };
 $('loginCode').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
-$('logoutBtn').onclick = () => { localStorage.removeItem('token'); $('token').value = ''; $('loginCode').value = ''; showLogin('已退出，请重新输入邀请码'); };
-$('navBtn').onclick = () => { $('panel').classList.toggle('open'); };
-document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
-  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-  t.classList.add('active');
-  document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
-  $('pane-' + t.dataset.tab).style.display = '';
+$('logoutBtn').onclick = () => {
+  localStorage.removeItem('token'); $('token').value = ''; $('loginCode').value = '';
+  showLogin('已退出，请重新输入邀请码');
+};
+
+// ---------------- 公告/教程 ----------------
+$('navBtn').onclick = () => $('panel').classList.toggle('open');
+document.querySelectorAll('.tab-btn').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab-btn').forEach(x => { x.classList.remove('active'); x.classList.add('text-white/50'); });
+  t.classList.add('active'); t.classList.remove('text-white/50');
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  $('pane-' + t.dataset.tab).classList.add('active');
 });
 
+// 移动端参数抽屉
+$('paramsToggle').onclick = () => $('paramsPanel').classList.toggle('hidden');
+
+// ---------------- API ----------------
 let workflows = [];
 async function api(path, opts = {}) {
   opts.headers = Object.assign({ 'Authorization': 'Bearer ' + $('token').value.trim() }, opts.headers);
@@ -516,73 +376,86 @@ async function api(path, opts = {}) {
   return data;
 }
 
+// ---------------- 工作流 / 尺寸 / 图生图 ----------------
+function wfHint(w) {
+  if (w.name === 'anima-img2img') return '需上传图';
+  if (/detailer/i.test(w.name) || /精修/.test(w.label)) return '约 90 秒';
+  return '约 12 秒';
+}
+function currentWf() { return workflows.find(x => x.name === $('workflow').value); }
+function isImg2Img() { return $('workflow').value === 'anima-img2img'; }
+
 async function loadWorkflows() {
   workflows = await api('/api/workflows');
+  $('wfCards').innerHTML = workflows.map((w, i) =>
+    `<div class="wf-card ${i===0?'active':''} text-left p-2.5 rounded-xl border border-ink-600" data-wf="${w.name}">
+       <div class="flex items-center justify-between">
+         <span class="text-sm font-medium">${w.label}</span>
+         <span class="text-xs text-white/40">${wfHint(w)}</span>
+       </div>
+     </div>`).join('');
+  $('wfCards').querySelectorAll('.wf-card').forEach(c => c.onclick = () => {
+    $('wfCards').querySelectorAll('.wf-card').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+    $('workflow').value = c.dataset.wf;
+    updateSizes(); updateImg2ImgUI();
+  });
   $('workflow').innerHTML = workflows.map(w => `<option value="${w.name}">${w.label}</option>`).join('');
   updateSizes();
 }
 function updateSizes() {
-  const w = workflows.find(x => x.name === $('workflow').value);
-  $('size').innerHTML = (w && w.sizes ? w.sizes : ['']).map(s => `<option>${s}</option>`).join('');
-  $('size').style.display = w && w.sizes ? '' : 'none';
+  const w = currentWf();
+  const sizes = (w && w.sizes) ? w.sizes : [];
+  $('sizeGrid').innerHTML = sizes.map((s, i) =>
+    `<button class="chip ${i===0?'active':''} text-xs py-2 rounded-lg border border-ink-600" data-size="${s}">${s.replace(/x/i,'×').replace('1024×1024','1024²')}</button>`
+  ).join('');
+  $('sizeGrid').querySelectorAll('.chip').forEach(b => b.onclick = () => {
+    $('sizeGrid').querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    $('size').value = b.dataset.size;
+  });
+  $('size').innerHTML = sizes.map(s => `<option>${s}</option>`).join('');
 }
-$('workflow').onchange = () => { updateSizes(); updateImg2ImgUI(); };
-function isImg2Img() { return $('workflow').value === 'anima-img2img'; }
 function updateImg2ImgUI() {
   const i2i = isImg2Img();
-  $('denoise-row').style.display = i2i ? '' : 'none';
-  $('ref-label-text').textContent = i2i ? '🖼️ 图生图（上传要改的图）' : '🖼️ 参考图（可选·提取氛围）';
+  $('denoise-row').classList.toggle('hidden', !i2i);
+  $('ref-label-text').textContent = i2i ? '上传要改的图' : '添加参考图';
   $('prompt').placeholder = i2i
     ? '描述你想要的完整画面（如：穿蓝色连衣裙的少女在海边夕阳下）——图生图要写完整描述，不是只写改动'
-    : '例：一个白发蓝眼睛的猫耳少女，穿着白色连衣裙，站在樱花树下，微笑';
+    : '描述你想画的… 例：一个白发蓝眼睛的猫耳少女，穿着白色连衣裙，站在樱花树下，微笑';
 }
-$('denoise').oninput = () => $('denoise-val').textContent = parseFloat($('denoise').value).toFixed(2);
-$('dlg-denoise').oninput = () => $('dlg-denoise-val').textContent = parseFloat($('dlg-denoise').value).toFixed(2);
 
+// ---------------- LoRA ----------------
 let loras = [];
 async function loadLoras() {
   try {
     loras = await api('/api/loras');
-    $('lora').innerHTML = '<option value="">无 LoRA（原生模型）</option>' +
+    const opts = '<option value="">无 LoRA（原生模型）</option>' +
       loras.map(l => `<option value="${l.key}">${l.name}</option>`).join('');
-  } catch (e) { /* LoRA 可选，拉不到不影响基础出图 */ }
+    $('lora').innerHTML = opts;
+    $('loraSelect').innerHTML = opts;
+    $('loraSelect').onchange = () => { $('lora').value = $('loraSelect').value; updateLoraPreview(); };
+  } catch (e) {}
 }
 function updateLoraPreview() {
   const l = loras.find(x => x.key === $('lora').value);
   const box = $('lora-preview');
-  if (!l) { box.style.display = 'none'; return; }
+  if (!l || (!l.preview && !l.description)) { box.classList.add('hidden'); box.classList.remove('flex'); return; }
   $('lora-desc').textContent = l.description || '';
-  if (l.preview) { $('lora-img').src = l.preview; $('lora-img').style.display = ''; }
-  else { $('lora-img').style.display = 'none'; $('lora-img').removeAttribute('src'); }
-  box.style.display = (l.preview || l.description) ? 'block' : 'none';
+  if (l.preview) { $('lora-img').src = l.preview; $('lora-img').classList.remove('hidden'); }
+  else { $('lora-img').classList.add('hidden'); }
+  box.classList.remove('hidden'); box.classList.add('flex');
 }
-$('lora').onchange = updateLoraPreview;
+$('lora-strength').oninput = function(){ $('lora-strength-val').textContent = parseFloat(this.value).toFixed(1); };
 
-let polling = null;
-const ACTION_BTNS = ['go', 'preview', 'confirm', 'reroll'];
-function setBusy(b) { ACTION_BTNS.forEach(id => $(id).disabled = b); }
-function jobsBody(promptEn, promptRaw) {
-  const body = { workflow: $('workflow').value, prompt_en: promptEn, prompt: promptRaw, size: $('size').value || undefined, lora: $('lora').value || undefined };
-  if (body.lora) { const s = parseFloat($('lora-strength').value); if (!isNaN(s)) body.strength = s; }
-  // img2img: 图 + denoise 走 /api/jobs (不走 /api/translate, 见 D26)
-  if (isImg2Img() && refImage) { body.image = refImage; body.denoise = parseFloat($('denoise').value); }
-  return body;
-}
-async function doTranslate(opts = {}) {
-  const json = { prompt: $('prompt').value.trim() };
-  if (opts.reroll) json.reroll = true;   // 抽卡再抽: 高温重出一版不同分解 (后端跳过缓存)
-  if (refImage && !isImg2Img()) json.image = refImage;    // ③ 参考图: 视觉 LLM 提氛围 (img2img 模式不发给 translate, 图走 /api/jobs)
-  return await api('/api/translate', { json });
-}
-
-// ③ 参考图上传: 缩到 768px / JPEG 0.85 再 base64 (省 token + 加速), 存 data URI 到 refImage
+// ---------------- 参考图 ----------------
 let refImage = null;
 function fileToResizedDataURL(file, maxDim, quality, cb) {
   const img = new Image();
   img.onload = () => {
     let w = img.width, h = img.height;
-    if (w > h && w > maxDim) { h = Math.round(h * maxDim / w); w = maxDim; }
-    else if (h > maxDim) { w = Math.round(w * maxDim / h); h = maxDim; }
+    if (w >= h && w > maxDim) { h = Math.round(h * maxDim / w); w = maxDim; }
+    else if (h > w && h > maxDim) { w = Math.round(w * maxDim / h); h = maxDim; }
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
     c.getContext('2d').drawImage(img, 0, 0, w, h);
@@ -590,73 +463,103 @@ function fileToResizedDataURL(file, maxDim, quality, cb) {
   };
   img.src = URL.createObjectURL(file);
 }
-$('ref-file').onchange = (e) => {
-  const f = e.target.files[0];
-  if (!f) return;
-  fileToResizedDataURL(f, 768, 0.85, (url) => {
-    refImage = url;
-    $('ref-thumb').src = url;
-    $('ref-preview').style.display = 'flex';
+$('ref-file').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  fileToResizedDataURL(f, 768, 0.85, url => {
+    refImage = url; $('ref-thumb').src = url;
+    $('ref-preview').classList.remove('hidden'); $('ref-preview').classList.add('flex');
   });
 };
-$('ref-clear').onclick = () => { refImage = null; $('ref-file').value = ''; $('ref-preview').style.display = 'none'; };
-function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-const BD_LABELS = { scene: '场景', composition: '构图', mood: '情绪', lighting: '光影', style: '风格' };
+$('ref-clear').onclick = () => {
+  refImage = null; $('ref-file').value = '';
+  $('ref-preview').classList.add('hidden'); $('ref-preview').classList.remove('flex');
+};
+$('denoise').oninput = function(){ $('denoise-val').textContent = parseFloat(this.value).toFixed(2); };
+$('dlg-denoise').oninput = function(){ $('dlg-denoise-val').textContent = parseFloat(this.value).toFixed(2); };
+
+// ---------------- 翻译 / 出图 ----------------
+let polling = null;
+const ACTION_BTNS = ['go','preview','confirm','reroll'];
+function setBusy(b) { ACTION_BTNS.forEach(id => { const el=$(id); if(el) el.disabled=b; }); }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+const BD_LABELS = { scene:'场景', composition:'构图', mood:'情绪', lighting:'光影', style:'风格' };
+
+function jobsBody(promptEn, promptRaw) {
+  const body = { workflow: $('workflow').value, prompt_en: promptEn, prompt: promptRaw,
+    size: $('size').value || undefined, lora: $('lora').value || undefined };
+  if (body.lora) { const s = parseFloat($('lora-strength').value); if (!isNaN(s)) body.strength = s; }
+  if (isImg2Img() && refImage) { body.image = refImage; body.denoise = parseFloat($('denoise').value); }
+  return body;
+}
+async function doTranslate(opts = {}) {
+  const json = { prompt: $('prompt').value.trim() };
+  if (opts.reroll) json.reroll = true;
+  if (refImage && !isImg2Img()) json.image = refImage;
+  return await api('/api/translate', { json });
+}
 function renderBreakdown(bd) {
   const box = $('breakdown');
-  if (!bd || typeof bd !== 'object') { box.style.display = 'none'; box.innerHTML = ''; return; }
-  const rows = Object.keys(BD_LABELS).filter(k => bd[k]).map(k => `<div class="bd-row"><b>${BD_LABELS[k]}：</b>${escapeHtml(bd[k])}</div>`).join('');
-  if (!rows) { box.style.display = 'none'; box.innerHTML = ''; return; }
-  box.innerHTML = '<div class="bd-title"> AI 理解</div>' + rows;
-  box.style.display = 'block';
+  if (!bd || typeof bd !== 'object') { box.innerHTML = ''; return; }
+  box.innerHTML = Object.keys(BD_LABELS).filter(k => bd[k]).map(k =>
+    `<div class="text-accent-pink text-xs pt-0.5">${BD_LABELS[k]}</div><div class="text-white/80 text-xs leading-relaxed break-words">${escapeHtml(bd[k])}</div>`
+  ).join('');
+}
+function setCanvasImage(src) {
+  if (src) {
+    $('img').src = src; $('img').classList.remove('hidden');
+    $('canvasPlaceholder').classList.add('hidden');
+    $('canvasBadges').classList.remove('hidden'); $('canvasActions').classList.remove('hidden');
+    const w = currentWf(); if (w) $('badgeWf').textContent = w.label;
+    $('badgeSize').textContent = $('size').value || '';
+  } else {
+    $('img').classList.add('hidden');
+    $('canvasPlaceholder').classList.remove('hidden');
+    $('canvasPlaceholder').textContent = '生成中…';
+    $('canvasBadges').classList.add('hidden'); $('canvasActions').classList.add('hidden');
+  }
 }
 async function submitJob(promptEn, promptRaw) {
-  // 令牌可能是页面加载后才填的: loadWorkflows 只在加载/点保存时跑, 这里补拉一次,
-  // 避免下拉框空 -> workflow="" -> /api/jobs 400 未知工作流 (手机上不点保存直接生成必踩)
   if (!workflows.length) await loadWorkflows();
-  if (!workflows.length) throw new Error('未加载到工作流，请检查令牌是否有效并点「保存」');
+  if (!workflows.length) throw new Error('未加载到工作流，请检查邀请码是否有效');
   const job = await api('/api/jobs', { json: jobsBody(promptEn, promptRaw) });
-  $('promptEn').innerHTML = '<strong>提示词：</strong>' + job.prompt_en;
-  $('status').textContent = '已提交，排队中…';
+  setCanvasImage(null);
+  $('status').textContent = '已提交，排队中…'; $('status').className = '';
   polling = setInterval(() => poll(job.id), 2000);
 }
 
 $('go').onclick = async () => {
   const prompt = $('prompt').value.trim();
   if (!prompt && !refImage) return;
-  $('result').style.display = 'none'; $('translate-preview').style.display = 'none';
-  $('bar').style.display = 'block'; $('status').className = ''; $('status').textContent = '翻译中…';
+  $('editActions').classList.add('hidden'); $('breakdown').innerHTML = '';
+  $('bar').style.display='block'; $('status').className=''; $('status').textContent='翻译中…';
   clearInterval(polling); setBusy(true);
   try { const r = await doTranslate(); await submitJob(r.prompt_en, prompt); }
   catch (e) { done('⚠ ' + e.message, true); }
 };
-
 $('preview').onclick = async () => {
   const prompt = $('prompt').value.trim();
   if (!prompt && !refImage) return;
-  $('bar').style.display = 'block'; $('status').className = ''; $('status').textContent = '翻译中…';
+  $('bar').style.display='block'; $('status').className=''; $('status').textContent='翻译中…';
   clearInterval(polling); setBusy(true);
   try {
     const r = await doTranslate();
     $('promptEnEdit').value = r.prompt_en;
     renderBreakdown(r.breakdown);
-    // 只有 LLM 路径 (有 breakdown) 才能给「再来一版」; 全命中词典的快速路径无可变, 隐藏按钮
-    $('reroll').style.display = r.breakdown ? '' : 'none';
-    $('translate-preview').style.display = 'block';
-    $('bar').style.display = 'none';
-    $('status').textContent = '可以编辑上面的翻译结果，再点确认生成';
+    $('reroll').classList.toggle('hidden', !r.breakdown);
+    $('editActions').classList.remove('hidden');
+    $('bar').style.display='none';
+    $('status').textContent = '可编辑上面的英文 tag，再点确认生成';
     setBusy(false);
   } catch (e) { done('⚠ ' + e.message, true); }
 };
 $('reroll').onclick = async () => {
-  $('bar').style.display = 'block'; $('status').className = ''; $('status').textContent = '换一版理解中…';
+  $('bar').style.display='block'; $('status').className=''; $('status').textContent='换一版理解中…';
   setBusy(true);
   try {
     const r = await doTranslate({ reroll: true });
-    $('promptEnEdit').value = r.prompt_en;
-    renderBreakdown(r.breakdown);
-    $('bar').style.display = 'none';
-    $('status').textContent = '换个理解了，可继续编辑或再来一版';
+    $('promptEnEdit').value = r.prompt_en; renderBreakdown(r.breakdown);
+    $('bar').style.display='none';
+    $('status').textContent = '换了个理解，可继续编辑或再来一版';
     setBusy(false);
   } catch (e) { done('⚠ ' + e.message, true); }
 };
@@ -664,48 +567,118 @@ $('confirm').onclick = async () => {
   const en = ($('promptEnEdit').value || '').trim();
   if (!en) return;
   const prompt = $('prompt').value.trim();
-  $('result').style.display = 'none'; $('translate-preview').style.display = 'none';
-  $('bar').style.display = 'block'; $('status').className = ''; $('status').textContent = '提交中…';
+  $('editActions').classList.add('hidden');
+  $('bar').style.display='block'; $('status').className=''; $('status').textContent='提交中…';
   clearInterval(polling); setBusy(true);
   try { await submitJob(en, prompt); }
   catch (e) { done('⚠ ' + e.message, true); }
 };
-$('editCancel').onclick = () => { $('translate-preview').style.display = 'none'; $('bar').style.display = 'none'; $('status').textContent = ''; setBusy(false); };
+$('editCancel').onclick = () => {
+  $('editActions').classList.add('hidden'); $('bar').style.display='none';
+  $('status').textContent = ''; setBusy(false);
+};
 
 async function poll(id) {
   try {
     const j = await api('/api/jobs/' + id);
-    if (j.status === 'queued') $('status').textContent = `排队中… 第 ${j.position} 位`;
-    else if (j.status === 'running') $('status').textContent = '生成中…（通常 10~60 秒）';
+    if (j.status === 'queued') { $('status').textContent = `排队中… 第 ${j.position} 位`; }
+    else if (j.status === 'running') { $('status').textContent = '生成中…（通常 10~60 秒）'; }
     else if (j.status === 'done') {
       clearInterval(polling);
-      $('img').src = API + j.image;
-      $('dl').href = API + j.image;
-      $('result').style.display = 'block';
-      addToGallery(API + j.image);
-      done('✅ 完成');
-    } else if (j.status === 'failed') { clearInterval(polling); done('❌ ' + (j.error || '生成失败'), true); }
-  } catch (e) { /* 网络抖动继续轮询 */ }
+      currentJobId = id;
+      const src = API + j.image;
+      $('dl').href = src;
+      setCanvasImage(src);
+      addToGallery(src);
+      done('完成', false);
+    } else if (j.status === 'failed') { clearInterval(polling); done('⚠ ' + (j.error || '生成失败'), true); }
+  } catch (e) {}
 }
-function done(msg, err) { $('status').textContent = msg; $('status').className = err ? 'err' : ''; $('bar').style.display = 'none'; setBusy(false); }
+function done(msg, err) {
+  $('status').textContent = msg;
+  $('status').className = err ? 'text-red-400' : 'text-green-400';
+  $('bar').style.display = 'none'; setBusy(false);
+}
 
-function addToGallery(src) {
-  const img = document.createElement('img'); img.src = src; img.onclick = () => window.open(src);
+// ---------------- 历史 (localStorage, 12 张) ----------------
+function loadHistory() {
+  let items = [];
+  try { items = JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch (e) {}
+  $('gallery').innerHTML = '';
+  items.forEach(src => addGalleryEl(src));
+}
+function addGalleryEl(src) {
+  const img = document.createElement('img');
+  img.src = src; img.className = 'hist-thumb w-16 h-20 object-cover rounded-md border border-ink-600 shrink-0';
+  img.onclick = () => window.open(src, '_blank');
   $('gallery').prepend(img);
+}
+function addToGallery(src) {
+  addGalleryEl(src);
+  let items = [];
+  try { items = JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch (e) {}
+  items.unshift(src);
+  items = items.slice(0, 12);
+  localStorage.setItem(HIST_KEY, JSON.stringify(items));
   while ($('gallery').children.length > 12) $('gallery').lastChild.remove();
 }
-// ---- 对话迭代 (⑤ MVP: 骨架 + A/D) ----
-let dialogMode = 'single';
+
+// ---------------- 暗房 (对话迭代) ----------------
 let sessionId = null;
-function setMode(m) {
-  dialogMode = m;
-  $('mode-single').classList.toggle('active', m === 'single');
-  $('mode-dialog').classList.toggle('active', m === 'dialog');
-  $('view-single').style.display = m === 'single' ? '' : 'none';
-  $('view-dialog').style.display = m === 'dialog' ? '' : 'none';
+let dlgMode = 'tweak';
+let currentJobId = null;  // 最近完成的 job_id, 给 start-image 用
+
+function showDarkroom(prefillPrompt) {
+  $('app').style.display = 'none';
+  $('darkroom').style.display = 'flex';
+  sessionId = null;
+  $('dr-start').classList.remove('hidden');
+  $('dr-cur-img').classList.add('hidden');
+  $('dlg-cur-info').classList.add('hidden');
+  $('drControls').classList.add('hidden');
+  $('dlg-thumbs').innerHTML = '';
+  $('dlg-delta').value = ''; $('dlg-status').textContent = '';
+  if (prefillPrompt) $('dlg-prompt').value = prefillPrompt;
+  window.scrollTo(0,0);
 }
-$('mode-single').onclick = () => setMode('single');
-$('mode-dialog').onclick = () => setMode('dialog');
+function showWorkshop() {
+  clearInterval(dlgPolling);
+  $('darkroom').style.display = 'none';
+  $('app').style.display = 'flex';
+  window.scrollTo(0,0);
+}
+$('toDarkroom').onclick = async () => {
+  // 有已完成的图 -> start-image 直接拿原图当第一轮进暗房; 否则降级带 prompt 重新出
+  if (!currentJobId) { showDarkroom($('prompt').value.trim()); return; }
+  try {
+    const r = await dlgTurn({ action: 'start-image', job_id: currentJobId });
+    sessionId = r.session_id;
+    $('app').style.display = 'none';
+    $('darkroom').style.display = 'flex';
+    $('dr-start').classList.add('hidden');
+    $('drControls').classList.remove('hidden');
+    $('dlg-thumbs').innerHTML = '';
+    $('dlg-delta').value = ''; $('dlg-status').textContent = '';
+    window.scrollTo(0,0);
+    pollDialog();
+  } catch (e) {
+    showDarkroom($('prompt').value.trim());
+  }
+};
+$('drBack').onclick = showWorkshop;
+$('drAbandon').onclick = showWorkshop;
+
+$('dlg-redo').onclick = () => setDlgMode('redo');
+$('dlg-img2img').onclick = () => setDlgMode('tweak');
+function setDlgMode(m) {
+  dlgMode = m;
+  $('dlg-redo').classList.toggle('active', m==='redo');
+  $('dlg-img2img').classList.toggle('active', m==='tweak');
+  $('dlg-redo').classList.toggle('text-white/70', m!=='redo');
+  $('dlg-strength-row').style.display = m==='tweak' ? 'flex' : 'none';
+  $('dr-desc-redo').classList.toggle('hidden', m!=='redo');
+  $('dr-desc-tweak').classList.toggle('hidden', m!=='tweak');
+}
 
 async function dlgTurn(body) {
   body.workflow = $('workflow').value;
@@ -723,26 +696,25 @@ $('dlg-start-btn').onclick = async () => {
   if (!prompt) return;
   dlgBusy(true, '翻译 + 生成中…');
   try {
-    const r = await dlgTurn({ action: 'start', prompt });
+    const r = await dlgTurn({ action:'start', prompt });
     sessionId = r.session_id;
-    $('dlg-start').style.display = 'none';
-    $('dlg-main').style.display = '';
+    $('dr-start').classList.add('hidden');
+    $('drControls').classList.remove('hidden');
     pollDialog();
-  } catch (e) { dlgBusy(false, '⚠ ' + e.message); $('dlg-status').className = 'err'; }
+  } catch (e) { dlgBusy(false, '⚠ ' + e.message); $('dlg-status').className='text-red-400'; }
 };
-$('dlg-redo').onclick = () => dlgAction('redo');
-$('dlg-img2img').onclick = () => dlgAction('tweak');
-async function dlgAction(action) {
+$('dlg-go').onclick = async () => {
   const delta = $('dlg-delta').value.trim();
-  const body = { action, session_id: sessionId, delta };
-  if (action === 'tweak') body.denoise = parseFloat($('dlg-denoise').value);
-  dlgBusy(true, action === 'tweak' ? '微调中…' : '生成中…');
+  dlgBusy(true, dlgMode==='tweak' ? '微调中…' : '生成中…');
   try {
+    const body = { action: dlgMode, session_id: sessionId, delta };
+    if (dlgMode === 'tweak') body.denoise = parseFloat($('dlg-denoise').value);
     await dlgTurn(body);
     $('dlg-delta').value = '';
     pollDialog();
-  } catch (e) { dlgBusy(false, '⚠ ' + e.message); $('dlg-status').className = 'err'; }
-}
+  } catch (e) { dlgBusy(false, '⚠ ' + e.message); $('dlg-status').className='text-red-400'; }
+};
+
 let dlgPolling = null;
 function pollDialog() {
   clearInterval(dlgPolling);
@@ -753,29 +725,39 @@ function pollDialog() {
       const allDone = s.turns.every(t => t.status === 'done' || t.status === 'failed');
       dlgBusy(!allDone, allDone ? '' : '生成中…');
       if (allDone) clearInterval(dlgPolling);
-    } catch (e) { /* 网络抖动继续轮询 */ }
+    } catch (e) {}
   }, 2000);
 }
+function actionLabel(a) { return a === 'start' ? '初版' : (a === 'redo' ? '换一版' : '微调'); }
 function renderDialog(turns) {
   if (!turns.length) return;
   const latest = turns[turns.length - 1];
-  // 当前图 + prompt
+  $('drMeta').textContent = `已迭代 ${turns.length} 张`;
   if (latest.image) {
-    $('dlg-cur-img').src = API + latest.image;
-    $('dlg-cur-img').style.display = '';
+    $('dr-cur-img').src = API + latest.image;
+    $('dr-cur-img').classList.remove('hidden');
+    $('dlg-cur-info').classList.remove('hidden');
     $('dlg-cur-info').innerHTML = '<b>提示词：</b>' + escapeHtml(latest.prompt_en);
   } else {
-    $('dlg-cur-img').style.display = 'none';
-    $('dlg-cur-info').textContent = latest.status === 'failed' ? '❌ ' + (latest.error || '失败') : '生成中…';
+    $('dr-cur-img').classList.add('hidden');
+    $('dlg-cur-info').classList.remove('hidden');
+    $('dlg-cur-info').textContent = latest.status === 'failed' ? '⚠ ' + (latest.error || '失败') : '生成中…';
   }
-  // 之前的轮次 -> 缩略图条
-  $('dlg-thumbs').innerHTML = turns.slice(0, -1).filter(t => t.image).map(t => {
-    const label = t.action === 'start' ? '初始' : (t.action === 'redo' ? '🔁' : '🌈');
-    return `<img class="dlg-thumb" src="${API}${t.image}" title="${label}${t.delta ? ' ' + escapeHtml(t.delta) : ''}" onclick="window.open('${API}${t.image}')">`;
+  // 血缘: 之前的轮次 (竖向)
+  $('dlg-thumbs').innerHTML = turns.slice(0, -1).filter(t => t.image).map((t, idx, arr) => {
+    const thumb = `<div class="lineage w-28 lg:w-auto shrink-0">
+        <div class="relative aspect-[3/4] rounded-lg overflow-hidden border border-ink-600">
+          <img src="${API}${t.image}" class="w-full h-full object-cover" onclick="window.open('${API}${t.image}','_blank')">
+          <span class="absolute top-1 left-1 glass text-[10px] px-1.5 py-0.5 rounded">${actionLabel(t.action)}</span>
+        </div>
+        <div class="text-[11px] text-white/50 mt-1 truncate">${t.delta ? escapeHtml(t.delta) : '初始描述'}</div>
+      </div>`;
+    const arrow = `<div class="flex lg:flex-col items-center justify-center text-accent-pink text-xs shrink-0">↓</div>`;
+    return thumb + (idx < arr.length - 1 ? arrow : '');
   }).join('');
 }
 
-// 页面加载: 有存 token 自动验证进主面板, 无则显登录
+// ---------------- 启动 ----------------
 if (localStorage.getItem('token')) enterApp(localStorage.getItem('token'));
 else showLogin();
 </script>
