@@ -109,14 +109,14 @@
         <div><span class="text-white/40 text-xs">2026-08-03</span><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-pink/20 text-accent-pink ml-1">新</span><b class="ml-1">界面大改</b><div class="text-white/55 text-xs mt-0.5">工坊/暗房三屏重写：AI 理解常驻结果旁、工作流卡片选择、历史缩略图条、移动端竖排适配。出图后点「继续迭代」直接拿原图进暗房。</div></div>
         <div><span class="text-white/40 text-xs">2026-08-02</span><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-pink/20 text-accent-pink ml-1">新</span><b class="ml-1">精修增强 NSFW + 图生图</b><div class="text-white/55 text-xs mt-0.5">精修版自动增强脸/手/NSFW 区域细节（自门控，普通图不受影响）。选「图生图」工作流可上传图改；暗房里「微调」直接在原图上改。</div></div>
         <div><span class="text-white/40 text-xs">2026-07-31</span><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-pink/20 text-accent-pink ml-1">新</span><b class="ml-1">参考图理解</b><div class="text-white/55 text-xs mt-0.5">上传一张图，AI 自动提取氛围/配色/光影，画同氛围的图（不是复刻原图）。只丢图也行。</div></div>
-        <div><span class="text-white/40 text-xs">2026-07-30</span><b class="ml-2">快速 / 精修双工作流</b><div class="text-white/55 text-xs mt-0.5">「精修」出图后自动修脸和手约 90 秒；「快速」约 12 秒。</div></div>
+        <div><span class="text-white/40 text-xs">2026-07-30</span><b class="ml-2">快速 / 精修双工作流</b><div class="text-white/55 text-xs mt-0.5">「精修」出图后自动修脸/手/NSFW 约 90~120 秒；「快速」约 40 秒。</div></div>
         <div><span class="text-white/40 text-xs">2026-07-29</span><b class="ml-2">再来一版</b><div class="text-white/55 text-xs mt-0.5">同一句话换一版不同解读（场景/光影/情绪），多抽挑最对的。</div></div>
       </div>
       <div id="pane-guide" class="tab-pane text-sm leading-relaxed space-y-4 text-white/75">
         <div><h3 class="text-white font-medium mb-1">基本用法</h3>
           <p class="text-white/55 text-xs">用中文描述想画的画面，点「生成」即可。想先看 AI 怎么理解，点「先看翻译」——能检查场景/光影/情绪拆解，还能直接改英文 tag 再生成。</p></div>
         <div><h3 class="text-white font-medium mb-1">快速 / 精修 / 图生图</h3>
-          <p class="text-white/55 text-xs"><b class="text-white/75">快速</b> 直接出图约 12 秒；<b class="text-white/75">精修</b> 出图后自动修脸和手约 90 秒；<b class="text-white/75">图生图</b> 在已有图上改、需上传图。图生图要写<b class="text-white/75">完整画面描述</b>（不是只写"换成白天"），重绘幅度 0.25–0.35 是微调、0.5+ 是大改。</p></div>
+          <p class="text-white/55 text-xs"><b class="text-white/75">快速</b> 直接出图约 40 秒；<b class="text-white/75">精修</b> 出图后自动修脸/手/NSFW 约 90~120 秒；<b class="text-white/75">图生图</b> 在已有图上改、需上传图。图生图要写<b class="text-white/75">完整画面描述</b>（不是只写"换成白天"），重绘幅度 0.25–0.35 是微调、0.5+ 是大改。</p></div>
         <div><h3 class="text-white font-medium mb-1">LoRA 是什么</h3>
           <p class="text-white/55 text-xs">风格"插件"，叠在模型上改画风或固定某个人物。<b class="text-white/75">强度 0~1</b>：太高会变形崩坏，建议从 0.7–0.9 试；不选就是原生模型。</p></div>
         <div><h3 class="text-white font-medium mb-1">参考图（非图生图时）</h3>
@@ -380,8 +380,8 @@ async function api(path, opts = {}) {
 // ---------------- 工作流 / 尺寸 / 图生图 ----------------
 function wfHint(w) {
   if (w.name === 'anima-img2img') return '需上传图';
-  if (/detailer/i.test(w.name) || /精修/.test(w.label)) return '约 90 秒';
-  return '约 12 秒';
+  if (/detailer/i.test(w.name) || /精修/.test(w.label)) return '约 90~120 秒';
+  return '约 40 秒';
 }
 function currentWf() { return workflows.find(x => x.name === $('workflow').value); }
 function isImg2Img() { return $('workflow').value === 'anima-img2img'; }
@@ -408,7 +408,7 @@ function updateSizes() {
   const w = currentWf();
   const sizes = (w && w.sizes) ? w.sizes : [];
   $('sizeGrid').innerHTML = sizes.map((s, i) =>
-    `<button class="chip ${i===0?'active':''} text-xs py-2 rounded-lg border border-ink-600" data-size="${s}">${s.replace(/x/i,'×').replace('1024×1024','1024²')}</button>`
+    `<button class="chip ${i===0?'active':''} text-xs py-2 rounded-lg border border-ink-600" data-size="${s}">${s.replace(/x/i,'×')}</button>`
   ).join('');
   $('sizeGrid').querySelectorAll('.chip').forEach(b => b.onclick = () => {
     $('sizeGrid').querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
