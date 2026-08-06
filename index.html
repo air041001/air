@@ -371,9 +371,9 @@ async function api(path, opts = {}) {
   if (opts.json) { opts.method = opts.method || 'POST'; opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(opts.json); }
   let r;
   try { r = await fetch(API + path, opts); }
-  catch (e) { throw new Error('连不上服务器 ' + API + '（网络问题，或还在用旧地址——请直接打开 https://airpaint.xyz）'); }
+  catch (e) { throw new Error(`请求失败 (${e.message}) -- 可能网络问题或服务器响应超时`); }
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.detail || ('HTTP ' + r.status));
+  if (!r.ok) throw new Error(data.detail || `服务器错误 ${r.status}`);
   return data;
 }
 
