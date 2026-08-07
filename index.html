@@ -106,6 +106,7 @@
         <button class="tab-btn text-sm pb-2 text-white/50 border-b-2 border-transparent" data-tab="guide">教程</button>
       </div>
       <div id="pane-news" class="tab-pane active space-y-3 text-sm">
+        <div><span class="text-white/40 text-xs">2026-08-07</span><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-pink/20 text-accent-pink ml-1">新</span><b class="ml-1">LoRA 分组 + 多选</b><div class="text-white/55 text-xs mt-0.5">LoRA 分成「角色」和「风格」两组，可以同时选一个角色 + 一个风格。新下载的 LoRA 自动扫描 Civitai 补全信息，不用手动配置。</div></div>
         <div><span class="text-white/40 text-xs">2026-08-03</span><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-pink/20 text-accent-pink ml-1">新</span><b class="ml-1">界面大改</b><div class="text-white/55 text-xs mt-0.5">工坊/暗房三屏重写：AI 理解常驻结果旁、工作流卡片选择、历史缩略图条、移动端竖排适配。出图后点「继续迭代」直接拿原图进暗房。</div></div>
         <div><span class="text-white/40 text-xs">2026-08-02</span><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-pink/20 text-accent-pink ml-1">新</span><b class="ml-1">精修增强 NSFW + 图生图</b><div class="text-white/55 text-xs mt-0.5">精修版自动增强脸/手/NSFW 区域细节（自门控，普通图不受影响）。选「图生图」工作流可上传图改；暗房里「微调」直接在原图上改。</div></div>
         <div><span class="text-white/40 text-xs">2026-07-31</span><span class="text-[10px] px-1.5 py-0.5 rounded bg-accent-pink/20 text-accent-pink ml-1">新</span><b class="ml-1">参考图理解</b><div class="text-white/55 text-xs mt-0.5">上传一张图，AI 自动提取氛围/配色/光影，画同氛围的图（不是复刻原图）。只丢图也行。</div></div>
@@ -118,7 +119,7 @@
         <div><h3 class="text-white font-medium mb-1">快速 / 精修 / 图生图</h3>
           <p class="text-white/55 text-xs"><b class="text-white/75">快速</b> 直接出图约 40 秒；<b class="text-white/75">精修</b> 出图后自动修脸/手/NSFW 约 90~120 秒；<b class="text-white/75">图生图</b> 在已有图上改、需上传图。图生图要写<b class="text-white/75">完整画面描述</b>（不是只写"换成白天"），重绘幅度 0.25–0.35 是微调、0.5+ 是大改。</p></div>
         <div><h3 class="text-white font-medium mb-1">LoRA 是什么</h3>
-          <p class="text-white/55 text-xs">风格"插件"，叠在模型上改画风或固定某个人物。<b class="text-white/75">强度 0~1</b>：太高会变形崩坏，建议从 0.7–0.9 试；不选就是原生模型。</p></div>
+          <p class="text-white/55 text-xs">风格"插件"，叠在模型上改画风或固定某个人物。分<b class="text-white/75">角色</b>和<b class="text-white/75">风格</b>两类，可同时选一个角色 + 一个风格。标「未配置」的没有触发词，需等管理员配置。<b class="text-white/75">强度 0~1</b>：太高会变形崩坏，建议从 0.7–0.9 试；不选就是原生模型。</p></div>
         <div><h3 class="text-white font-medium mb-1">参考图（非图生图时）</h3>
           <p class="text-white/55 text-xs">上传一张氛围参考图，AI 提取光影/配色/场景（<b class="text-white/75">不抄图里的人物</b>），配合文字出图。文字给主体、图给氛围效果最好。</p></div>
         <div><h3 class="text-white font-medium mb-1">继续迭代</h3>
@@ -221,7 +222,6 @@
       <!-- 隐藏原生 select: 值由卡片/宫格驱动, 提交逻辑沿用原 id -->
       <select id="workflow" class="hidden"></select>
       <select id="size" class="hidden"></select>
-      <select id="lora" class="hidden"></select>
       <div>
         <div class="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2.5">工作流</div>
         <div id="wfCards" class="flex flex-col gap-2"></div>
@@ -231,17 +231,29 @@
         <div id="sizeGrid" class="grid grid-cols-3 gap-2"></div>
       </div>
       <div>
-        <div class="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2.5">LoRA 风格</div>
-        <select id="loraSelect" class="w-full bg-ink-900 border border-ink-600 rounded-lg text-sm px-3 py-2"></select>
-        <div class="flex items-center gap-2 mt-2">
-          <span class="text-xs text-white/40 w-10">强度</span>
-          <input id="lora-strength" type="range" min="0" max="1" step="0.05" value="1" class="flex-1">
-          <span id="lora-strength-val" class="text-xs text-white/60 w-8 text-right">1.0</span>
-        </div>
-        <div id="lora-preview" class="mt-2 p-2.5 rounded-lg bg-ink-900 border border-ink-600 gap-2.5 items-start hidden">
-          <img id="lora-img" class="w-12 h-12 rounded-md object-cover shrink-0 hidden" alt="">
-          <span id="lora-desc" class="text-xs text-white/55 leading-relaxed"></span>
-        </div>
+        <div class="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">角色 LoRA</div>
+        <button id="loraCharToggle" class="chip w-full text-left text-sm px-3 py-2 rounded-lg border border-ink-600 text-white/70 flex items-center justify-between">
+          <span id="loraCharLabel" class="truncate">无</span>
+          <span class="text-[10px] text-white/40 shrink-0 ml-2">▾</span>
+        </button>
+        <div id="loraCharMenu" class="hidden mt-1.5 flex flex-wrap gap-1.5"></div>
+      </div>
+      <div>
+        <div class="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">风格 LoRA</div>
+        <button id="loraStyleToggle" class="chip w-full text-left text-sm px-3 py-2 rounded-lg border border-ink-600 text-white/70 flex items-center justify-between">
+          <span id="loraStyleLabel" class="truncate">无</span>
+          <span class="text-[10px] text-white/40 shrink-0 ml-2">▾</span>
+        </button>
+        <div id="loraStyleMenu" class="hidden mt-1.5 flex flex-wrap gap-1.5"></div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-white/40 w-10">强度</span>
+        <input id="lora-strength" type="range" min="0" max="1" step="0.05" value="1" class="flex-1">
+        <span id="lora-strength-val" class="text-xs text-white/60 w-8 text-right">1.0</span>
+      </div>
+      <div id="lora-preview" class="p-2.5 rounded-lg bg-ink-900 border border-ink-600 gap-2.5 items-start hidden">
+        <img id="lora-img" class="w-12 h-12 rounded-md object-cover shrink-0 hidden" alt="">
+        <span id="lora-desc" class="text-xs text-white/55 leading-relaxed"></span>
       </div>
     </aside>
   </div>
@@ -427,23 +439,49 @@ function updateImg2ImgUI() {
 }
 
 // ---------------- LoRA ----------------
-let loras = [];
+let loraData = { characters: [], styles: [] };
+let selLora = { char: null, style: null };
+
 async function loadLoras() {
   try {
-    loras = await api('/api/loras');
-    const opts = '<option value="">无 LoRA（原生模型）</option>' +
-      loras.map(l => `<option value="${l.key}">${l.name}</option>`).join('');
-    $('lora').innerHTML = opts;
-    $('loraSelect').innerHTML = opts;
-    $('loraSelect').onchange = () => { $('lora').value = $('loraSelect').value; updateLoraPreview(); };
+    loraData = await api('/api/loras');
+    renderLoraChips('loraCharMenu', loraData.characters, 'char', 'loraCharLabel', 'loraCharToggle');
+    renderLoraChips('loraStyleMenu', loraData.styles, 'style', 'loraStyleLabel', 'loraStyleToggle');
   } catch (e) {}
 }
+function renderLoraChips(menuId, items, group, labelId, toggleId) {
+  const menu = $(menuId);
+  let html = `<button class="chip active text-xs py-1.5 px-2.5 rounded-md border border-ink-600" data-lora="" data-group="${group}">无</button>`;
+  html += items.map(l => {
+    const badge = l.configured ? '' : ' <span class="text-[9px] text-amber-400/60">未配置</span>';
+    return `<button class="chip text-xs py-1.5 px-2.5 rounded-md border border-ink-600 text-white/70" data-lora="${l.key}" data-group="${group}">${escapeHtml(l.name)}${badge}</button>`;
+  }).join('');
+  menu.innerHTML = html;
+  menu.querySelectorAll('.chip').forEach(b => b.onclick = () => {
+    menu.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    selLora[group] = b.dataset.lora || null;
+    $(labelId).textContent = b.dataset.lora ? b.textContent.replace('未配置', '').trim() : '无';
+    menu.classList.add('hidden');
+    updateLoraPreview();
+  });
+  // toggle 展开/收起
+  $(toggleId).onclick = () => menu.classList.toggle('hidden');
+}
+function getSelectedLoras() {
+  return [selLora.char, selLora.style].filter(Boolean);
+}
 function updateLoraPreview() {
-  const l = loras.find(x => x.key === $('lora').value);
+  const keys = getSelectedLoras();
+  const all = [...loraData.characters, ...loraData.styles];
+  const selected = all.filter(x => keys.includes(x.key));
   const box = $('lora-preview');
-  if (!l || (!l.preview && !l.description)) { box.classList.add('hidden'); box.classList.remove('flex'); return; }
-  $('lora-desc').textContent = l.description || '';
-  if (l.preview) { $('lora-img').src = l.preview; $('lora-img').classList.remove('hidden'); }
+  if (!selected.length) { box.classList.add('hidden'); box.classList.remove('flex'); return; }
+  $('lora-desc').innerHTML = selected.map(l =>
+    `<div class="${selected.length > 1 ? 'mb-1 last:mb-0' : ''}"><b class="text-white/70">${escapeHtml(l.name)}</b>${l.description ? ': ' + escapeHtml(l.description) : ''}</div>`
+  ).join('');
+  const withPreview = selected.find(l => l.preview);
+  if (withPreview) { $('lora-img').src = withPreview.preview; $('lora-img').classList.remove('hidden'); }
   else { $('lora-img').classList.add('hidden'); }
   box.classList.remove('hidden'); box.classList.add('flex');
 }
@@ -487,8 +525,9 @@ const BD_LABELS = { scene:'场景', composition:'构图', mood:'情绪', lightin
 
 function jobsBody(promptEn, promptRaw) {
   const body = { workflow: $('workflow').value, prompt_en: promptEn, prompt: promptRaw,
-    size: $('size').value || undefined, lora: $('lora').value || undefined };
-  if (body.lora) { const s = parseFloat($('lora-strength').value); if (!isNaN(s)) body.strength = s; }
+    size: $('size').value || undefined };
+  const loras = getSelectedLoras();
+  if (loras.length) { body.loras = loras; const s = parseFloat($('lora-strength').value); if (!isNaN(s)) body.strength = s; }
   if (isImg2Img() && refImage) { body.image = refImage; body.denoise = parseFloat($('denoise').value); }
   return body;
 }
@@ -684,8 +723,8 @@ function setDlgMode(m) {
 async function dlgTurn(body) {
   body.workflow = $('workflow').value;
   body.size = $('size').value || undefined;
-  body.lora = $('lora').value || undefined;
-  if (body.lora) { const s = parseFloat($('lora-strength').value); if (!isNaN(s)) body.strength = s; }
+  const loras = getSelectedLoras();
+  if (loras.length) { body.loras = loras; const s = parseFloat($('lora-strength').value); if (!isNaN(s)) body.strength = s; }
   return await api('/api/dialog/turn', { json: body });
 }
 function dlgBusy(on, msg) {
